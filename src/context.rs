@@ -1,5 +1,7 @@
 use std::sync::Arc;
-use winit::window::Window;
+use winit::{dpi::PhysicalSize, window::Window};
+
+use crate::camera::{camera_buffer::CameraBuffer, Camera, CameraGraphic, PerspectiveConfig};
 
 
 
@@ -10,10 +12,16 @@ pub struct FcvContext<'window> {
     adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    
+    camera: CameraBuffer,
 }
 
 impl<'window> FcvContext<'window> {
-    pub async fn new(window: Arc<Window>) -> Self {
+    pub fn new(window: Arc<Window>) -> Self {
+        pollster::block_on(Self::new_async(window))
+    }
+
+    pub async fn new_async(window: Arc<Window>) -> Self {
         let instance = wgpu::Instance::default();
         let surface = instance.create_surface(
             window.clone()
@@ -50,13 +58,35 @@ impl<'window> FcvContext<'window> {
             ).expect("Setting Surface Config.");
         surface.configure(&device, &surface_config);
 
+        let camera = CameraBuffer::new(
+            Camera::default()
+                .with_graphic(CameraGraphic::Perspective(
+                    PerspectiveConfig {
+                        aspect: size.width as f32 / size.height as f32,
+                        ..Default::default()
+                    }
+                ))
+            , &device);
 
         Self {
             surface,
             surface_config,
             adapter,
             device,
-            queue
+            queue,
+            camera
         }
+    }
+
+    pub fn resize(&mut self, size: PhysicalSize<u32>) {
+        self.surface_config.width = size.width.max(1);
+        self.surface_config.height = size.height.max(1);
+        self.surface.configure(&self.device, &self.surface_config);
+        self.camera.camera.on_resize((size.width as f32, size.height as f32));
+        self.update_camera_buffer();
+    }
+
+    pub fn update_camera_buffer(&mut self) {
+        self.camera.update_buffer(&self.queue);
     }
 }
