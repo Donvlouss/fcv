@@ -58,6 +58,7 @@ impl CameraBuffer {
     }
 
     pub fn update_buffer(&self, queue: &wgpu::Queue) {
+        // println!("{:?}", self);
         queue.write_buffer(&self.buffer, 0,
             bytemuck::cast_slice(&[CameraUniform::from(self.camera)]));
     }

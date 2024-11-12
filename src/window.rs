@@ -17,7 +17,7 @@ pub struct FcvWindow<'window> {
     config: FcvWindowConfig,
     window: Option<Arc<Window>>,
     wgpu_context: Option<FcvContext<'window>>,
-    camera_controller: CameraController
+    camera_controller: CameraController,
 }
 
 impl<'window> FcvWindow<'window> {
@@ -41,7 +41,7 @@ impl<'window> FcvWindow<'window> {
         &mut self,
         points: &[Vec3],
         colors: &[Vec4],
-        indices: &[usize]
+        indices: &[u32]
     ) -> Option<usize> {
         if let Some(ctx) = self.wgpu_context.as_mut() {
             Some(ctx.add_points_with_indices(points, colors, indices))

@@ -9,7 +9,7 @@ impl<'window> FcvContext<'window> {
         &mut self,
         points: &[Vec3],
         colors: &[Vec4],
-        indices: &[usize]
+        indices: &[u32]
     ) -> usize {
         let id = self.vertex_manager.request_index();
         let buffer = VertexBuffer::new(id)
@@ -27,7 +27,7 @@ impl<'window> FcvContext<'window> {
         points: &[Vec3],
         colors: &[Vec4],
     ) -> usize {
-        let indices = (0..points.len().min(colors.len())).collect::<Vec<_>>();
+        let indices = (0..points.len().min(colors.len()) as u32).collect::<Vec<_>>();
         self.add_points_with_indices(points, colors, &indices)
     }
     pub fn add_points_uniform_color(

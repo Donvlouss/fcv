@@ -34,7 +34,11 @@ impl SparseVertexRender {
     pub fn render(&mut self,
         device: &wgpu::Device,
         pass: &mut wgpu::RenderPass) {
-        let indices = (0..self.data.len() as u32).collect::<Vec<u32>>();
+        let n = self.data.len();
+        if n == 0 {
+            return;
+        }
+        let indices = (0..n as u32).collect::<Vec<u32>>();
         let buffer_data = 
             device.create_buffer_init(
                 &wgpu::util::BufferInitDescriptor {
@@ -50,7 +54,7 @@ impl SparseVertexRender {
                 usage: wgpu::BufferUsages::INDEX,
             }
         );
-        
+
         pass.set_vertex_buffer(0, buffer_data.slice(..));
         pass.set_index_buffer(buffer_indices.slice(..), wgpu::IndexFormat::Uint32);
         pass.draw_indexed(0..self.data.len() as u32, 0, 0..1);

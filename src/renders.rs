@@ -22,7 +22,8 @@ macro_rules! create_pipeline {
         $shader: ident,
         $layout: ident,
         $pipeline_label: expr,
-        $buffers: expr
+        $buffers: expr,
+        $topology: expr
     ) => {
         $device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some($pipeline_label),
@@ -34,7 +35,7 @@ macro_rules! create_pipeline {
                 buffers: $buffers,
             },
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                topology: $topology,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),

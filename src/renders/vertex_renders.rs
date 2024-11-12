@@ -152,6 +152,9 @@ impl VertexBuffer {
         if let (
             Some(p), Some(c), Some(i)
         ) = (&self.buffer_point, &self.buffer_color, &self.buffer_indices) {
+            if p.size() == 0 || c.size()==0 || i.size()==0 {
+                return;
+            }
             pass.set_vertex_buffer(0, p.slice(..));
             pass.set_vertex_buffer(1, c.slice(..));
             pass.set_index_buffer(i.slice(..), wgpu::IndexFormat::Uint32);

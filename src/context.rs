@@ -6,7 +6,7 @@ use winit::{dpi::PhysicalSize, window::Window};
 use crate::{camera::{camera_buffer::CameraBuffer, camera_controller::CameraController, Camera, CameraGraphic, PerspectiveConfig}, renders::vertex_manager::VertexManager};
 
 
-
+#[allow(unused)]
 #[derive(Debug)]
 pub struct FcvContext<'window> {
     surface: wgpu::Surface<'window>,
@@ -101,4 +101,20 @@ impl<'window> FcvContext<'window> {
         self.camera.update_buffer(&self.queue);
     }
 
+    pub fn render(&mut self) {
+        // Get Texture.
+        let surface_texture = self.surface.get_current_texture().unwrap();
+        // Get Texture View.
+        let texture_view = surface_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        // Get encoder from device and pass render command.
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        self.vertex_manager.render(&self.device, &mut encoder, &texture_view, &self.camera.bind_group());
+
+        self.queue.submit(Some(encoder.finish()));
+        surface_texture.present();
+    }
 }
