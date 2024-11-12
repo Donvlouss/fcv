@@ -1,7 +1,9 @@
+mod manages;
+
 use std::sync::Arc;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::camera::{camera_buffer::CameraBuffer, Camera, CameraGraphic, PerspectiveConfig};
+use crate::{camera::{camera_buffer::CameraBuffer, camera_controller::CameraController, Camera, CameraGraphic, PerspectiveConfig}, renders::vertex_manager::VertexManager};
 
 
 
@@ -14,6 +16,8 @@ pub struct FcvContext<'window> {
     queue: wgpu::Queue,
     
     camera: CameraBuffer,
+
+    vertex_manager: VertexManager,
 }
 
 impl<'window> FcvContext<'window> {
@@ -68,14 +72,21 @@ impl<'window> FcvContext<'window> {
                 ))
             , &device);
 
+        let vertex_manager = VertexManager::new(&device, &surface_config, &[camera.layout()]);
+        
         Self {
             surface,
             surface_config,
             adapter,
             device,
             queue,
-            camera
+            camera,
+            vertex_manager
         }
+    }
+
+    pub fn process_camera(&mut self, controller: &mut CameraController) -> bool {
+        controller.process_delta(&mut self.camera.camera)
     }
 
     pub fn resize(&mut self, size: PhysicalSize<u32>) {
@@ -89,4 +100,5 @@ impl<'window> FcvContext<'window> {
     pub fn update_camera_buffer(&mut self) {
         self.camera.update_buffer(&self.queue);
     }
+
 }

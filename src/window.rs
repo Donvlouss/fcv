@@ -1,33 +1,84 @@
+mod handler;
+
 use std::sync::Arc;
 
-use winit::{application::ApplicationHandler, window::Window};
+use glam::{Vec3, Vec4};
+use winit::window::Window;
+
+use crate::{camera::camera_controller::CameraController, context::FcvContext};
 
 #[derive(Debug, Clone, Default)]
 pub struct FcvWindowConfig {
     pub title: String,
 }
 
-#[derive(Debug, Default)]
-pub struct FcvWindow {
+#[derive(Debug)]
+pub struct FcvWindow<'window> {
     config: FcvWindowConfig,
     window: Option<Arc<Window>>,
+    wgpu_context: Option<FcvContext<'window>>,
+    camera_controller: CameraController
 }
 
-impl ApplicationHandler for FcvWindow {
-    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if self.window.is_none() {
-            let attribute = Window::default_attributes().with_title(&self.config.title);
-            let window = Arc::new(event_loop.create_window(attribute).expect("Create Window."));
-            self.window = Some(window);
+impl<'window> FcvWindow<'window> {
+    pub fn new(config: FcvWindowConfig) -> Self {
+        Self {
+            config, window: None, wgpu_context: None,
+            camera_controller: CameraController::default()
         }
     }
 
-    fn window_event(
+    pub fn render(&self) {
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
+    }
+}
+
+// Vertex
+impl<'window> FcvWindow<'window> {
+    pub fn add_points_with_indices(
         &mut self,
-        _event_loop: &winit::event_loop::ActiveEventLoop,
-        _window_id: winit::window::WindowId,
-        _event: winit::event::WindowEvent,
-    ) {
-        
+        points: &[Vec3],
+        colors: &[Vec4],
+        indices: &[usize]
+    ) -> Option<usize> {
+        if let Some(ctx) = self.wgpu_context.as_mut() {
+            Some(ctx.add_points_with_indices(points, colors, indices))
+        } else {
+            None
+        }
+    }
+    pub fn add_points(
+        &mut self,
+        points: &[Vec3],
+        colors: &[Vec4],
+    ) -> Option<usize> {
+        if let Some(ctx) = self.wgpu_context.as_mut() {
+            Some(ctx.add_points(points, colors))
+        } else {
+            None
+        }
+    }
+    pub fn add_points_uniform_color(
+        &mut self,
+        points: &[Vec3],
+        color: Vec4,
+    ) -> Option<usize> {
+        if let Some(ctx) = self.wgpu_context.as_mut() {
+            Some(ctx.add_points_uniform_color(points, color))
+        } else {
+            None
+        }
+    }
+    pub fn remove_points(&mut self, id: usize) {
+        if let Some(ctx) = self.wgpu_context.as_mut() {
+            Some(ctx.remove_points(id));
+        } 
+    }
+    pub fn draw_point(&mut self, p: Vec3, c: Vec4) {
+        if let Some(ctx) = self.wgpu_context.as_mut() {
+            Some(ctx.draw_point(p, c));
+        }
     }
 }

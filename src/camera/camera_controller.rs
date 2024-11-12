@@ -1,21 +1,28 @@
 use super::Camera;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CameraEvent {
     Pan,
     Rot,
     Zoom,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CameraController {
     event: Option<CameraEvent>,
     speed: f32,
     position: (f64, f64),
     event_position: (f64, f64),
+    delta: (f32, f32),
 }
 
 impl CameraController {
+    pub fn enabled(&self) -> bool {
+        match self.event {
+            Some(e) => e != CameraEvent::Zoom,
+            None => false,
+        }
+    }
     #[inline]
     pub fn set_pos(&mut self, pos: (f64, f64)) {
         self.position = pos;
@@ -29,26 +36,35 @@ impl CameraController {
     pub fn disable_event(&mut self) {
         self.event = None;
     }
-    pub fn process_delta(&mut self, delta: (f64, f64), camera: &mut Camera) {
+    pub fn process_delta(&mut self, camera: &mut Camera) -> bool {
         if self.event.is_some() {
             match self.event.take().unwrap() {
-                CameraEvent::Pan => self.pan(delta, camera),
-                CameraEvent::Rot => self.rot(delta, camera),
-                CameraEvent::Zoom => self.zoom(delta.1, camera),
+                CameraEvent::Pan => self.pan(camera),
+                CameraEvent::Rot => self.rot(camera),
+                CameraEvent::Zoom => self.zoom(camera),
             }
+            true
+        } else {
+            false
         }
     }
-    pub fn process_position(&mut self, position: (f64, f64), camera: &mut Camera) {
-        let delta = (position.0 - self.event_position.0, position.1 - self.event_position.1);
-        self.process_delta(delta, camera);
+    // pub fn process_position(&mut self, camera: &mut Camera) {
+    //     let delta = (position.0 - self.event_position.0, position.1 - self.event_position.1);
+    //     self.process_delta(camera);
+    // }
+    pub fn set_delta(&mut self, xy: (f64, f64)) {
+        self.delta = ((xy.0 - self.event_position.0) as f32, (xy.1 - self.event_position.1) as f32);
+    }
+    pub fn set_zoom_delta(&mut self, xy: (f32, f32)) {
+        self.delta = xy;
     }
 
-    fn pan(&self, delta: (f64, f64), camera: &mut Camera) {
-        if delta.0 + delta.1 == 0. {
+    fn pan(&self, camera: &mut Camera) {
+        if self.delta.0 + self.delta.1 == 0. {
             return;
         }
-        let ndc_delta_x = -delta.0 as f32;
-        let ndc_delta_y = delta.1 as f32;
+        let ndc_delta_x = -self.delta.0 as f32;
+        let ndc_delta_y = self.delta.1 as f32;
 
         let focus_distance = (camera.target - camera.eye).length();
         let up = camera.up;
@@ -61,8 +77,8 @@ impl CameraController {
         camera.eye += v;
         camera.target += v;
     }
-    fn rot(&self, delta: (f64, f64), camera: &mut Camera) {
-        if delta.0 + delta.1 == 0. {
+    fn rot(&self, camera: &mut Camera) {
+        if self.delta.0 + self.delta.1 == 0. {
             return;
         }
         let forward = camera.target - camera.eye;
@@ -73,20 +89,20 @@ impl CameraController {
         let y = x.cross(forward_norm);
 
         camera.eye = camera.target
-            - (forward - (x * -delta.0 as f32 + y * delta.1 as f32) * self.speed).normalize()
+            - (forward - (x * -self.delta.0 as f32 + y * self.delta.1 as f32) * self.speed).normalize()
                 * forward_mag;
 
         camera.up = y;
     }
-    fn zoom(&self, delta: f64, camera: &mut Camera) {
-        if delta == 0. {
+    fn zoom(&self, camera: &mut Camera) {
+        if self.delta.1 == 0. {
             return;
         }
         let forward = camera.target - camera.eye;
         let forward_norm = forward.normalize();
         let forward_mag = forward.length();
 
-        if delta > 0. && forward_mag > self.speed {
+        if self.delta.1 > 0. && forward_mag > self.speed {
             camera.eye += forward_norm * self.speed;
         } else {
             camera.eye -= forward_norm * self.speed;
