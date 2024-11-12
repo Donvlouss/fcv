@@ -24,7 +24,7 @@ impl<'window> FcvWindow<'window> {
     pub fn new(config: FcvWindowConfig) -> Self {
         Self {
             config, window: None, wgpu_context: None,
-            camera_controller: CameraController::default()
+            camera_controller: CameraController::new(0.1)
         }
     }
 

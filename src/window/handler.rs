@@ -13,6 +13,9 @@ impl<'window> ApplicationHandler for FcvWindow<'window> {
         if self.window.is_none() {
             let attribute = Window::default_attributes().with_title(&self.config.title);
             let window = Arc::new(event_loop.create_window(attribute).expect("Create Window."));
+            self.camera_controller.resize(
+                (window.inner_size().width, window.inner_size().height)
+            );
             let ctx  = FcvContext::new(window.clone());
 
             self.wgpu_context = Some(ctx);
@@ -32,7 +35,7 @@ impl<'window> ApplicationHandler for FcvWindow<'window> {
                 let u = u as f32 / 100.;
                 self.draw_point(Vec3::new(1., 1., 0.) * u, Vec4::ONE);
             }
-
+            
             self.window = Some(window);
         }
     }
@@ -50,6 +53,7 @@ impl<'window> ApplicationHandler for FcvWindow<'window> {
             WindowEvent::Resized(size) => {
                 if let Some(ctx) = self.wgpu_context.as_mut() {
                     ctx.resize(size);
+                    self.camera_controller.resize((size.width, size.height));
                 }
             },
             WindowEvent::MouseInput { device_id: _device_id, state, button } => {
