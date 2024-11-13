@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use winit::{dpi::PhysicalSize, window::Window};
 
+use egui_wgpu::wgpu;
+
 use crate::{camera::{camera_buffer::CameraBuffer, camera_controller::CameraController, Camera, CameraGraphic, PerspectiveConfig}, renders::RenderManager};
 
 

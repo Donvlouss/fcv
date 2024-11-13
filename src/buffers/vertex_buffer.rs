@@ -1,4 +1,5 @@
 use super::BufferType;
+use egui_wgpu::wgpu;
 
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]

@@ -1,4 +1,5 @@
-use wgpu::util::DeviceExt;
+
+use egui_wgpu::wgpu::{self, util::DeviceExt};
 
 use super::{Camera, CameraUniform};
 

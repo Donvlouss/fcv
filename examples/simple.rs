@@ -37,12 +37,37 @@ fn main() {
         }).collect::<Vec<_>>();
     let white = Vec4::ONE;
 
+    let mut point = Vec3::new(0.1, 0.1, 0.1);
+
     window.render_loop(
         event_loop,
-        move |vertex_manager| {
+        |ctx, vertex_manager| {
             line_pts.iter().for_each(|p| {
                 vertex_manager.draw_point(*p, white);
             });
-        }
+            egui::Window::new("winit + egui + wgpu says hello!")
+                .resizable(true)
+                .vscroll(true)
+                .default_open(false)
+                .show(ctx, |ui| {
+                    ui.label("Label!");
+
+                    if ui.button("Button!").clicked() {
+                        println!("boom!")
+                    }
+
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label(format!(
+                            "Pixels per point: {}",
+                            ctx.pixels_per_point()
+                        ));
+                        if ui.button("Button").clicked() {
+                            point += point;
+                        }
+                    });
+                });
+            vertex_manager.draw_point(point, white);
+        },
     );
 }

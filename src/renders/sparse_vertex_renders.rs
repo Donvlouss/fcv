@@ -1,5 +1,5 @@
 use glam::{Vec3, Vec4};
-use wgpu::util::DeviceExt;
+use egui_wgpu::{wgpu, wgpu::util::DeviceExt};
 
 use crate::buffers::vertex_buffer::PointColorBuffer;
 

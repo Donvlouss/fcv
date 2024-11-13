@@ -1,4 +1,4 @@
-use wgpu::util::DeviceExt;
+use egui_wgpu::{wgpu, wgpu::util::DeviceExt};
 
 use crate::buffers::{vertex_buffer::{ColorBuffer, PointBuffer}, BufferType};
 

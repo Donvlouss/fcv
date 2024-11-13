@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use glam::{Vec3, Vec4};
-use wgpu::{include_wgsl, RenderPassDescriptor};
+use egui_wgpu::{wgpu, wgpu::{include_wgsl, RenderPassDescriptor}};
 
 use crate::{buffers::{vertex_buffer::{ColorBuffer, PointBuffer, PointColorBuffer}, BufferType}, create_pipeline};
 

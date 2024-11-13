@@ -3,7 +3,7 @@ use std::{sync::Arc, time::{Duration, Instant}};
 use glam::{Vec3, Vec4};
 use winit::{dpi::{PhysicalSize, Size}, event::{ElementState, MouseScrollDelta, WindowEvent}, event_loop::EventLoop, window::Window};
 
-use crate::{camera::camera_controller::{CameraController, CameraEvent}, context::FcvContext, renders::vertex_manager::VertexManager};
+use crate::{camera::camera_controller::{CameraController, CameraEvent}, context::FcvContext, renders::vertex_manager::VertexManager, ui::EguiRenderer};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum WindowUpdateMode {
@@ -29,13 +29,13 @@ impl Default for FcvWindowConfig {
     }
 }
 
-#[derive(Debug)]
 pub struct FcvWindow<'window> {
     config: FcvWindowConfig,
     window: Option<Arc<Window>>,
     wgpu_context: Option<FcvContext<'window>>,
     camera_controller: CameraController,
 
+    egui_renderer: EguiRenderer,
     vertex_render: VertexManager,
 }
 
@@ -44,6 +44,7 @@ impl<'window> FcvWindow<'window> {
         Self {
             config, window: None, wgpu_context: None,
             camera_controller: CameraController::new(0.1),
+            egui_renderer: EguiRenderer::new(),
             vertex_render: VertexManager::default()
         }
     }
@@ -57,12 +58,16 @@ impl<'window> FcvWindow<'window> {
             self.camera_controller.resize(
                 (window.inner_size().width, window.inner_size().height)
             );
-            let ctx  = FcvContext::new(window.clone());
+            let ctx  = FcvContext::new(Arc::clone(&window));
             self.vertex_render.build(
                 ctx.device(),
                 ctx.queue(),
                 ctx.surface_config(),
                 &[ctx.camera_group_layout()]
+            );
+            self.egui_renderer.build(
+                &ctx.device(), ctx.surface_config().format,
+                None, 1, Arc::clone(&window)
             );
             self.wgpu_context = Some(ctx);
             self.window = Some(window);
@@ -70,13 +75,21 @@ impl<'window> FcvWindow<'window> {
     }
 
     #[allow(deprecated)]
-    pub fn render_loop<F: FnMut(&mut VertexManager)>(&mut self, event_loop: EventLoop<()>, mut each_frame: F) {
+    pub fn render_loop<F: FnMut(&egui::Context, &mut VertexManager)>(
+            &mut self, event_loop: EventLoop<()>,
+            mut each_frame: F,
+    ) {
         event_loop.run(|e, event_loop| {
             match e {
                 winit::event::Event::WindowEvent { window_id: _window_id, event } => {
+                    if self.egui_renderer.handle_input(&event) {
+                        if let Some(window) = self.window.as_ref() {
+                            window.request_redraw();
+                            return;
+                        }
+                    }
                     match event {
                         WindowEvent::CloseRequested => {
-                            println!("Request Exited");
                             event_loop.exit();
                         },
                         WindowEvent::Resized(size) => {
@@ -115,10 +128,22 @@ impl<'window> FcvWindow<'window> {
                             }
                         },
                         WindowEvent::RedrawRequested => {
-                            if let Some(ctx) = self.wgpu_context .as_mut() {
-                                each_frame(&mut self.vertex_render);
-                                // ctx.render(vec![&mut self.vertex_render]);
-                                ctx.render(&mut [&mut self.vertex_render]);
+                            if let (Some(ctx), Some(window)) = (self.wgpu_context.as_mut(), self.window.as_ref()) {
+
+                                if !self.egui_renderer.begin_frame(window) {
+                                    return;
+                                }
+                                each_frame(
+                                    self.egui_renderer.context().as_ref().unwrap(),
+                                    &mut self.vertex_render,
+                                );
+                                
+                                ctx.render(
+                                    &mut [
+                                        &mut self.vertex_render,
+                                        &mut self.egui_renderer,
+                                    ]
+                                );
                             }
                         }
                         _ => {}

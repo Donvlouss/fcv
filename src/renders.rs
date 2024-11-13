@@ -1,3 +1,5 @@
+use egui_wgpu::wgpu;
+
 pub mod vertex_renders;
 pub mod sparse_vertex_renders;
 pub mod lines_renders;
@@ -41,7 +43,7 @@ macro_rules! create_pipeline {
             layout: Some(&$layout),
             vertex: wgpu::VertexState {
                 module: &$shader,
-                entry_point: Some("vs_main"),
+                entry_point: "vs_main",
                 compilation_options: Default::default(),
                 buffers: $buffers,
             },
@@ -62,7 +64,7 @@ macro_rules! create_pipeline {
             },
             fragment: Some(wgpu::FragmentState {
                 module: &$shader,
-                entry_point: Some("fs_main"),
+                entry_point: "fs_main",
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: $config.format,
