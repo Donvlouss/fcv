@@ -10,21 +10,21 @@ pub struct FcvContext<'window> {
     surface: wgpu::Surface<'window>,
     surface_config: wgpu::SurfaceConfiguration,
     adapter: wgpu::Adapter,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+    device: Arc<wgpu::Device>,
+    queue: Arc<wgpu::Queue>,
     
     camera: CameraBuffer,
 }
 
 impl<'window> FcvContext<'window> {
-    pub fn device(&self) -> &wgpu::Device {
-        &self.device
+    pub fn device(&self) -> Arc<wgpu::Device> {
+        Arc::clone(&self.device)
     }
     pub fn surface_config(&self) -> &wgpu::SurfaceConfiguration {
         &self.surface_config
     }
-    pub fn queue(&self) -> &wgpu::Queue {
-        &self.queue
+    pub fn queue(&self) -> Arc<wgpu::Queue> {
+        Arc::clone(&self.queue)
     }
     pub fn camera_group(&self) -> &wgpu::BindGroup {
         self.camera.bind_group()
@@ -88,8 +88,8 @@ impl<'window> FcvContext<'window> {
             surface,
             surface_config,
             adapter,
-            device,
-            queue,
+            device: Arc::new(device),
+            queue: Arc::new(queue),
             camera,
         }
     }

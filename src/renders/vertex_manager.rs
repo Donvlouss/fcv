@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use glam::{Vec3, Vec4};
 use wgpu::{include_wgsl, RenderPassDescriptor};
@@ -15,12 +15,16 @@ pub struct VertexManager {
     counter: usize,
     pipeline: Option<wgpu::RenderPipeline>,
     sparse_pipeline: Option<wgpu::RenderPipeline>,
+
+    device: Option<Arc<wgpu::Device>>,
+    queue: Option<Arc<wgpu::Queue>>,
 }
 
 impl VertexManager {
     pub fn build(
         &mut self,
-        device: &wgpu::Device,
+        device: Arc<wgpu::Device>,
+        queue: Arc<wgpu::Queue>,
         config: &wgpu::SurfaceConfiguration,
         bind_group_layouts: &[&wgpu::BindGroupLayout],
     ) {
@@ -46,6 +50,8 @@ impl VertexManager {
         );
         self.pipeline = Some(pipeline);
         self.sparse_pipeline = Some(sparse_pipeline);
+        self.device = Some(device);
+        self.queue = Some(queue);
     }
     pub fn request_index(&mut self) -> usize {
         self.counter += 1;
@@ -68,6 +74,45 @@ impl VertexManager {
     }
     pub fn entry_mut(&mut self, id: &usize) -> Option<&mut VertexBuffer> {
         self.map.get_mut(id)
+    }
+    pub fn add_points_with_indices(
+        &mut self,
+        points: &[Vec3],
+        colors: &[Vec4],
+        indices: &[u32],
+    ) -> usize {
+        let id = self.request_index();
+        let (device, queue) = if let (Some(d), Some(q)) = (self.device.as_ref(), self.queue.as_ref()) {
+            (Some(d.as_ref()), Some(q.as_ref()))
+        } else {
+            (None, None)
+        };
+        let buffer = VertexBuffer::build_from_pci(id,
+            bytemuck::cast_slice(points),
+            bytemuck::cast_slice(colors),
+            bytemuck::cast_slice(indices),
+            device, queue);
+        self.add_item(buffer, Some(id));
+        id
+    }
+    pub fn add_points(
+        &mut self,
+        points: &[Vec3],
+        colors: &[Vec4],
+    ) -> usize {
+        let indices = (0..(points.len().min(colors.len()) as u32)).collect::<Vec<_>>();
+        self.add_points_with_indices(points, colors, &indices)
+    }
+    pub fn add_points_uniform_color(
+        &mut self,
+        points: &[Vec3],
+        color: Vec4,
+    ) -> usize {
+        let colors = vec![color; points.len()];
+        self.add_points(points, &colors)
+    }
+    pub fn remove_points(&mut self, id: usize) {
+        self.remove_item(id);
     }
     pub fn draw_point(&mut self, p: Vec3, c: Vec4) {
         self.sparse.add(p, c);

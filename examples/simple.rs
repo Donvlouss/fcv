@@ -15,6 +15,8 @@ fn main() {
     let mut window = FcvWindow::new(
         FcvWindowConfig {
             title: "Simple Visualization".to_owned(),
+            mode: fcv::window::WindowUpdateMode::StaticTime(1. / 144.),
+            ..Default::default()
         }
     );
 
@@ -28,5 +30,19 @@ fn main() {
     window.add_points_uniform_color(&y_axis, Vec4::new(0., 1., 0., 1.,));
     window.add_points_uniform_color(&z_axis, Vec4::new(0., 0., 1., 1.,));
 
-    event_loop.run_app(&mut window).unwrap();
+    let line_pts = (0..=100)
+        .map(|i| {
+            let p = i as f32 / 100.;
+            Vec3::new(p, p, 0.)
+        }).collect::<Vec<_>>();
+    let white = Vec4::ONE;
+
+    window.render_loop(
+        event_loop,
+        move |vertex_manager| {
+            line_pts.iter().for_each(|p| {
+                vertex_manager.draw_point(*p, white);
+            });
+        }
+    );
 }
