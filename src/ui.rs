@@ -9,6 +9,7 @@ use winit::window::Window;
 
 use crate::renders::RenderManager;
 
+/// Ref: [egui_tools.rs](https://github.com/kaphula/winit-egui-wgpu-template/blob/master/src/egui_tools.rs)
 pub struct EguiRenderer {
     state: Option<State>,
     renderer: Option<Renderer>,
@@ -101,7 +102,6 @@ impl RenderManager for EguiRenderer {
         queue: &wgpu::Queue,
     ) {
         if !self.frame_started {
-            // panic!("begin_frame must be called before end_frame_and_draw can be called!");
             return;
         }
         let desc = {   
