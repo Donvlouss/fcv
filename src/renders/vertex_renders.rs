@@ -7,6 +7,9 @@ const INDEX_SIZE: u64 = std::mem::size_of::<u32>() as u64;
 #[derive(Debug)]
 pub struct VertexBuffer {
     index: usize,
+    preserve_points: Vec<PointBuffer>,
+    preserve_colors: Vec<ColorBuffer>,
+    preserve_indices: Vec<u32>,
     buffer_point: Option<wgpu::Buffer>,
     buffer_color: Option<wgpu::Buffer>,
     buffer_indices: Option<wgpu::Buffer>,
@@ -14,7 +17,26 @@ pub struct VertexBuffer {
 
 impl VertexBuffer {
     pub fn new(index: usize) -> Self {
-        Self { index, buffer_point: None, buffer_color: None, buffer_indices: None }
+        Self { index, preserve_points: vec![], preserve_colors: vec![], preserve_indices: vec![],
+            buffer_point: None, buffer_color: None, buffer_indices: None }
+    }
+    pub fn set_id(&mut self, id: usize) {
+        self.index = id;
+    }
+    pub fn id(&self) -> usize {
+        self.index
+    }
+    pub fn restore_points(mut self, points: &[PointBuffer]) -> Self {
+        self.preserve_points = points.to_vec();
+        self
+    }
+    pub fn restore_colors(mut self, colors: &[ColorBuffer]) -> Self {
+        self.preserve_colors = colors.to_vec();
+        self
+    }
+    pub fn restore_indices(mut self, indices: &[u32]) -> Self {
+        self.preserve_indices = indices.to_vec();
+        self
     }
     pub fn set_points(
         mut self,
@@ -145,7 +167,41 @@ impl VertexBuffer {
         };
         c && i
     }
-    pub fn render(&self, pass: &mut wgpu::RenderPass) {
+    fn upload_to_buffer(&mut self, device: &wgpu::Device) {
+        if !self.preserve_points.is_empty() {
+            self.buffer_point = Some(device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some(&format!("Vertex Buffer @ {}", self.index)),
+                    contents: bytemuck::cast_slice(&self.preserve_points),
+                    usage: wgpu::BufferUsages::VERTEX,
+                }
+            ));
+            self.preserve_points.clear();
+        }
+        if !self.preserve_colors.is_empty() {
+            self.buffer_color = Some(device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some(&format!("Vertex Buffer @ {}", self.index)),
+                    contents: bytemuck::cast_slice(&self.preserve_colors),
+                    usage: wgpu::BufferUsages::VERTEX,
+                }
+            ));
+            self.preserve_colors.clear();
+        }
+        if !self.preserve_indices.is_empty() {
+            self.buffer_indices = Some(device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some(&format!("Vertex Buffer @ {}", self.index)),
+                    contents: bytemuck::cast_slice(&self.preserve_indices),
+                    usage: wgpu::BufferUsages::INDEX,
+                }
+            ));
+            self.preserve_indices.clear();
+        }
+    }
+
+    pub fn render(&mut self, pass: &mut wgpu::RenderPass, device: &wgpu::Device) {
+        self.upload_to_buffer(device);
         if !self.check() {
             return;
         }
@@ -161,6 +217,26 @@ impl VertexBuffer {
             let nb_indices = (i.size() / INDEX_SIZE) as u32;
             pass.draw_indexed(0..nb_indices, 0, 0..1);
         }
+    }
 
+    pub fn build_from_pci(
+        id: usize,
+        points: &[PointBuffer],
+        colors: &[ColorBuffer],
+        indices: &[u32],
+        device: Option<&wgpu::Device>,
+        queue: Option<&wgpu::Queue>
+    ) -> Self {
+        if let (Some(device), Some(queue)) = (device, queue) {
+            Self::new(id)
+                .set_points(device, queue, points)
+                .set_colors(device, queue, colors)
+                .set_indices(device, queue, indices)
+        } else {
+            Self::new(id)
+                .restore_points(points)
+                .restore_colors(colors)
+                .restore_indices(indices)
+        }
     }
 }

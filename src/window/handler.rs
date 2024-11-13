@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use glam::{Vec3, Vec4};
 use winit::{application::ApplicationHandler, event::{ElementState, MouseScrollDelta, WindowEvent}, window::Window};
 
 use crate::{camera::camera_controller::CameraEvent, context::FcvContext};
@@ -17,25 +16,9 @@ impl<'window> ApplicationHandler for FcvWindow<'window> {
                 (window.inner_size().width, window.inner_size().height)
             );
             let ctx  = FcvContext::new(window.clone());
+            self.vertex_render.build(ctx.device(), ctx.surface_config(), &[ctx.camera_group_layout()]);
 
             self.wgpu_context = Some(ctx);
-
-            let x_axis = (0..=100)
-            .map(|i| Vec3::new(i as f32 / 100., 0., 0.)).collect::<Vec<_>>();
-            let y_axis = (0..=100)
-                .map(|i| Vec3::new(0., i as f32 / 100., 0.)).collect::<Vec<_>>();
-            let z_axis = (0..=100)
-                .map(|i| Vec3::new(0., 0., i as f32 / 100.)).collect::<Vec<_>>();
-
-            self.add_points_uniform_color(&x_axis, Vec4::new(1., 0., 0., 1.));
-            self.add_points_uniform_color(&y_axis, Vec4::new(0., 1., 0., 1.));
-            self.add_points_uniform_color(&z_axis, Vec4::new(0., 0., 1., 1.));
-
-            for u in 0..100 {
-                let u = u as f32 / 100.;
-                self.draw_point(Vec3::new(1., 1., 0.) * u, Vec4::ONE);
-            }
-            
             self.window = Some(window);
         }
     }
@@ -86,8 +69,9 @@ impl<'window> ApplicationHandler for FcvWindow<'window> {
                 }
             },
             WindowEvent::RedrawRequested => {
-                if let Some(ctx) = self.wgpu_context .as_mut(){
-                    ctx.render();
+                if let Some(ctx) = self.wgpu_context .as_mut() {
+                    // ctx.render(vec![&mut self.vertex_render]);
+                    ctx.render(&mut [&mut self.vertex_render]);
                 }
             }
             _ => {}

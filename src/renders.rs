@@ -13,6 +13,17 @@ pub enum BufferUsageType {
     Indices,
 }
 
+pub trait RenderManager {
+    fn render(
+        &mut self,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        bind_group: &wgpu::BindGroup,
+        queue: &wgpu::Queue,
+    );
+}
+
 #[macro_export]
 macro_rules! create_pipeline {
     (

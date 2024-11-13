@@ -1,9 +1,7 @@
-mod manages;
-
 use std::sync::Arc;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::{camera::{camera_buffer::CameraBuffer, camera_controller::CameraController, Camera, CameraGraphic, PerspectiveConfig}, renders::vertex_manager::VertexManager};
+use crate::{camera::{camera_buffer::CameraBuffer, camera_controller::CameraController, Camera, CameraGraphic, PerspectiveConfig}, renders::RenderManager};
 
 
 #[allow(unused)]
@@ -16,11 +14,25 @@ pub struct FcvContext<'window> {
     queue: wgpu::Queue,
     
     camera: CameraBuffer,
-
-    vertex_manager: VertexManager,
 }
 
 impl<'window> FcvContext<'window> {
+    pub fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
+    pub fn surface_config(&self) -> &wgpu::SurfaceConfiguration {
+        &self.surface_config
+    }
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.queue
+    }
+    pub fn camera_group(&self) -> &wgpu::BindGroup {
+        self.camera.bind_group()
+    }
+    pub fn camera_group_layout(&self) -> &wgpu::BindGroupLayout {
+        self.camera.layout()
+    }
+
     pub fn new(window: Arc<Window>) -> Self {
         pollster::block_on(Self::new_async(window))
     }
@@ -71,8 +83,6 @@ impl<'window> FcvContext<'window> {
                     }
                 ))
             , &device);
-
-        let vertex_manager = VertexManager::new(&device, &surface_config, &[camera.layout()]);
         
         Self {
             surface,
@@ -81,7 +91,6 @@ impl<'window> FcvContext<'window> {
             device,
             queue,
             camera,
-            vertex_manager
         }
     }
 
@@ -101,7 +110,7 @@ impl<'window> FcvContext<'window> {
         self.camera.update_buffer(&self.queue);
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, renderer: &mut [&mut dyn RenderManager]) {
         // Get Texture.
         let surface_texture = self.surface.get_current_texture().unwrap();
         // Get Texture View.
@@ -112,7 +121,9 @@ impl<'window> FcvContext<'window> {
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        self.vertex_manager.render(&self.device, &mut encoder, &texture_view, &self.camera.bind_group());
+        for r in renderer.iter_mut() {
+            r.render(&self.device, &mut encoder, &texture_view, &self.camera.bind_group(), &self.queue);
+        }
 
         self.queue.submit(Some(encoder.finish()));
         surface_texture.present();

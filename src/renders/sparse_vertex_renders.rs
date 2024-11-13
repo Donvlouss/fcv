@@ -4,7 +4,7 @@ use wgpu::util::DeviceExt;
 use crate::buffers::vertex_buffer::PointColorBuffer;
 
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SparseVertexRender {
     data: Vec<PointColorBuffer>,
     buffer_data: Option<wgpu::Buffer>,

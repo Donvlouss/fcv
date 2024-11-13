@@ -5,24 +5,25 @@ use wgpu::{include_wgsl, RenderPassDescriptor};
 
 use crate::{buffers::{vertex_buffer::{ColorBuffer, PointBuffer, PointColorBuffer}, BufferType}, create_pipeline};
 
-use super::{sparse_vertex_renders::SparseVertexRender, vertex_renders::VertexBuffer};
+use super::{sparse_vertex_renders::SparseVertexRender, vertex_renders::VertexBuffer, RenderManager};
 
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct VertexManager {
     map: HashMap<usize, VertexBuffer>,
     sparse: SparseVertexRender,
     counter: usize,
-    pipeline: wgpu::RenderPipeline,
-    sparse_pipeline: wgpu::RenderPipeline
+    pipeline: Option<wgpu::RenderPipeline>,
+    sparse_pipeline: Option<wgpu::RenderPipeline>,
 }
 
 impl VertexManager {
-    pub fn new(
+    pub fn build(
+        &mut self,
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
         bind_group_layouts: &[&wgpu::BindGroupLayout],
-    ) -> Self {
+    ) {
         let shaders = device.create_shader_module(include_wgsl!("../shaders/points.wgsl"));
         let layout = device.create_pipeline_layout(
             &wgpu::PipelineLayoutDescriptor {
@@ -43,14 +44,8 @@ impl VertexManager {
             &[PointBuffer::desc(), ColorBuffer::desc()],
             wgpu::PrimitiveTopology::PointList
         );
-
-        Self {
-            counter: 0,
-            map: HashMap::new(),
-            pipeline,
-            sparse_pipeline,
-            sparse: SparseVertexRender::new(),
-        }
+        self.pipeline = Some(pipeline);
+        self.sparse_pipeline = Some(sparse_pipeline);
     }
     pub fn request_index(&mut self) -> usize {
         self.counter += 1;
@@ -77,16 +72,6 @@ impl VertexManager {
     pub fn draw_point(&mut self, p: Vec3, c: Vec4) {
         self.sparse.add(p, c);
     }
-    pub fn render(
-        &mut self,
-        device: &wgpu::Device,
-        encoder: &mut wgpu::CommandEncoder,
-        view: &wgpu::TextureView,
-        bind_group: &wgpu::BindGroup
-    ) {
-        self.render_multiple(encoder, view, bind_group);
-        self.render_sparse(device, encoder, view, bind_group);
-    }
     fn render_sparse(
         &mut self,
         device: &wgpu::Device,
@@ -94,6 +79,11 @@ impl VertexManager {
         view: &wgpu::TextureView,
         bind_group: &wgpu::BindGroup
     ) {
+        let pipeline = if let Some(p) = self.sparse_pipeline.as_ref() {
+            p
+        } else {
+            return;
+        };
         let mut pass = encoder.begin_render_pass(
             &RenderPassDescriptor {
                 label: None,
@@ -110,16 +100,22 @@ impl VertexManager {
                 occlusion_query_set: None,
             }
         );
-        pass.set_pipeline(&self.sparse_pipeline);
+        pass.set_pipeline(pipeline);
         pass.set_bind_group(0, bind_group, &[]);
         self.sparse.render(device, &mut pass);
     }
     fn render_multiple(
         &mut self,
+        device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
-        bind_group: &wgpu::BindGroup
+        bind_group: &wgpu::BindGroup,
     ) {
+        let pipeline = if let Some(p) = self.pipeline.as_ref() {
+            p
+        } else {
+            return;
+        };
         let mut pass = encoder.begin_render_pass(
             &RenderPassDescriptor {
                 label: None,
@@ -136,10 +132,24 @@ impl VertexManager {
                 occlusion_query_set: None,
             }
         );
-        pass.set_pipeline(&self.pipeline);
+        pass.set_pipeline(pipeline);
         pass.set_bind_group(0, bind_group, &[]);
-        for buff in self.map.values() {
-            buff.render(&mut pass);
+        for buff in self.map.values_mut() {
+            buff.render(&mut pass, device);
         }
+    }
+}
+
+impl RenderManager for VertexManager {
+    fn render(
+        &mut self,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        bind_group: &wgpu::BindGroup,
+        _queue: &wgpu::Queue
+    ) {
+        self.render_multiple(device, encoder, view, bind_group);
+        self.render_sparse(device, encoder, view, bind_group);
     }
 }
