@@ -10,7 +10,8 @@ pub enum CameraEvent {
 #[derive(Debug, Default)]
 pub struct CameraController {
     event: Option<CameraEvent>,
-    speed: f32,
+    rotate_speed: f32,
+    zoom_speed: f32,
     position: (f64, f64),
     event_position: (f64, f64),
     delta: (f32, f32),
@@ -18,9 +19,9 @@ pub struct CameraController {
 }
 
 impl CameraController {
-    pub fn new(speed: f32) -> Self {
+    pub fn new(rotate_speed: f32, zoom_speed: f32) -> Self {
         Self {
-            speed, ..Default::default()
+            rotate_speed, zoom_speed, ..Default::default()
         }
     }
     pub fn resize(&mut self, size: (u32, u32)) {
@@ -106,7 +107,7 @@ impl CameraController {
         let dy = self.delta.1 as f32;
         let d = x * dx + y * dy;
 
-        let factor = self.speed * forward_mag.max(0.1).min(1.0);
+        let factor = self.rotate_speed * forward_mag.max(0.1).min(1.0);
 
         camera.eye = camera.target
             - (forward - d * factor).normalize()
@@ -122,12 +123,12 @@ impl CameraController {
         let forward_norm = forward.normalize();
         let forward_mag = forward.length();
 
-        if self.delta.1 > 0. && forward_mag > self.speed {
-            camera.eye += forward_norm * self.speed;
-        } else if self.delta.1 > 0. && forward_mag * 0.1 > self.speed * 0.1 {
+        if self.delta.1 > 0. && forward_mag > self.zoom_speed {
+            camera.eye += forward_norm * self.zoom_speed;
+        } else if self.delta.1 > 0. && forward_mag * 0.1 > self.zoom_speed * 0.1 {
             camera.eye += forward_norm * forward_mag * 0.1;
         } else {
-            camera.eye -= forward_norm * self.speed;
+            camera.eye -= forward_norm * self.zoom_speed;
         }
     }
 }

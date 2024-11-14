@@ -21,11 +21,19 @@ pub struct FcvWindowConfig {
     pub title: String,
     pub mode: WindowUpdateMode,
     pub inner_size: (u32, u32),
+    pub camera_rotate_speed: f32,
+    pub camera_zoom_speed: f32,
 }
 
 impl Default for FcvWindowConfig {
     fn default() -> Self {
-        Self { title: "Window".to_owned(), mode: Default::default(), inner_size: (DEFAULT_WIDTH, DEFAULT_HEIGHT) }
+        Self { 
+            title: "Window".to_owned(),
+            mode: Default::default(),
+            inner_size: (DEFAULT_WIDTH, DEFAULT_HEIGHT),
+            camera_rotate_speed: 0.01,
+            camera_zoom_speed: 0.1
+        }
     }
 }
 
@@ -42,8 +50,8 @@ pub struct FcvWindow<'window> {
 impl<'window> FcvWindow<'window> {
     pub fn new(config: FcvWindowConfig) -> Self {
         Self {
+            camera_controller: CameraController::new(config.camera_rotate_speed, config.camera_zoom_speed),
             config, window: None, wgpu_context: None,
-            camera_controller: CameraController::new(0.1),
             egui_renderer: EguiRenderer::new(),
             vertex_render: VertexManager::default()
         }
