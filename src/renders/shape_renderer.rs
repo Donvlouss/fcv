@@ -86,7 +86,7 @@ impl ShapeRenderer {
         let inb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
                 contents: bytemuck::cast_slice(&self.matrix),
-                usage: wgpu::BufferUsages::INDEX,
+                usage: wgpu::BufferUsages::VERTEX,
             });
 
         pass.set_vertex_buffer(0, pb.slice(..));

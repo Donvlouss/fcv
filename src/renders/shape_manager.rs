@@ -104,11 +104,11 @@ impl ShapeManager {
 }
 
 macro_rules! render {
-    ($op: ident, $view: ident, $encoder: ident, $clear: ident, $bind_group: ident) => {{
+    ($op: ident, $label: expr, $view: ident, $encoder: ident, $clear: ident, $bind_group: ident) => {{
         let pipeline = if let Some(p) = $op.as_ref() { p } else { return; };
         let mut pass = $encoder.begin_render_pass(
             &wgpu::RenderPassDescriptor {
-                label: None,
+                label: Some($label),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     $view,
                     resolve_target: None,
@@ -141,35 +141,35 @@ impl RenderManager for ShapeManager {
         {
             let mut pass = {
                 let p = self.pl_points.as_ref();
-                render!(p, view, encoder, true, bind_group)
+                render!(p, "Point Pipeline", view, encoder, true, bind_group)
             };
             self.render_pipeline(device, &mut pass, RenderType::Points);
         }
         {
             let mut pass = {
             let p = self.pl_line.as_ref();
-            render!(p, view, encoder, false, bind_group)
+            render!(p, "Line Pipeline", view, encoder, false, bind_group)
             };
             self.render_pipeline(device, &mut pass, RenderType::Line);
         }
         {
             let mut pass = {
             let p = self.pl_line_strip.as_ref();
-            render!(p, view, encoder, false, bind_group)
+            render!(p, "LineStrip Pipeline", view, encoder, false, bind_group)
             };
             self.render_pipeline(device, &mut pass, RenderType::LineStrip);
         }
         {
             let mut pass = {
             let p = self.pl_tri.as_ref();
-            render!(p, view, encoder, false, bind_group)
+            render!(p, "Triangle Pipeline", view, encoder, false, bind_group)
             };
             self.render_pipeline(device, &mut pass, RenderType::Triangle);
         }
         {
             let mut pass = {
             let p = self.pl_tri_strip.as_ref();
-            render!(p, view, encoder, false, bind_group)
+            render!(p, "TriangleStrip Pipeline", view, encoder, false, bind_group)
             };
             self.render_pipeline(device, &mut pass, RenderType::TriangleStrip);
         }

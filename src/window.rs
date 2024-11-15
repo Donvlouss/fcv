@@ -3,7 +3,7 @@ use std::{sync::Arc, time::{Duration, Instant}};
 use glam::{Vec3, Vec4};
 use winit::{dpi::{PhysicalSize, Size}, event::{ElementState, MouseScrollDelta, WindowEvent}, event_loop::EventLoop, window::Window};
 
-use crate::{camera::camera_controller::{CameraController, CameraEvent}, context::FcvContext, renders::vertex_manager::VertexManager, ui::EguiRenderer};
+use crate::{camera::camera_controller::{CameraController, CameraEvent}, context::FcvContext, renders::{shape_manager::ShapeManager, vertex_manager::VertexManager}, ui::EguiRenderer};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum WindowUpdateMode {
@@ -45,6 +45,7 @@ pub struct FcvWindow<'window> {
 
     egui_renderer: EguiRenderer,
     vertex_render: VertexManager,
+    shape_manager: ShapeManager,
 }
 
 impl<'window> FcvWindow<'window> {
@@ -53,7 +54,8 @@ impl<'window> FcvWindow<'window> {
             camera_controller: CameraController::new(config.camera_rotate_speed, config.camera_zoom_speed),
             config, window: None, wgpu_context: None,
             egui_renderer: EguiRenderer::new(),
-            vertex_render: VertexManager::default()
+            vertex_render: VertexManager::default(),
+            shape_manager: ShapeManager::default(),
         }
     }
 
@@ -67,7 +69,13 @@ impl<'window> FcvWindow<'window> {
                 (window.inner_size().width, window.inner_size().height)
             );
             let ctx  = FcvContext::new(Arc::clone(&window));
-            self.vertex_render.build(
+            // self.vertex_render.build(
+            //     ctx.device(),
+            //     ctx.queue(),
+            //     ctx.surface_config(),
+            //     &[ctx.camera_group_layout()]
+            // );
+            self.shape_manager.build(
                 ctx.device(),
                 ctx.queue(),
                 ctx.surface_config(),
@@ -80,6 +88,10 @@ impl<'window> FcvWindow<'window> {
             self.wgpu_context = Some(ctx);
             self.window = Some(window);
         }
+    }
+
+    pub fn manager(&mut self) -> &mut ShapeManager {
+        &mut self.shape_manager
     }
 
     #[allow(deprecated)]
@@ -146,9 +158,15 @@ impl<'window> FcvWindow<'window> {
                                     &mut self.vertex_render,
                                 );
                                 
+                                // ctx.render(
+                                //     &mut [
+                                //         &mut self.vertex_render,
+                                //         &mut self.egui_renderer,
+                                //     ]
+                                // );
                                 ctx.render(
                                     &mut [
-                                        &mut self.vertex_render,
+                                        &mut self.shape_manager,
                                         &mut self.egui_renderer,
                                     ]
                                 );
