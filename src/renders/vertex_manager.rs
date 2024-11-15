@@ -40,7 +40,7 @@ impl VertexManager {
             device, config, bind_group_layouts,
             shaders, layout, "Points Pipeline",
             &[PointColorBuffer::desc()],
-            wgpu::PrimitiveTopology::PointList
+            wgpu::PrimitiveTopology::TriangleList
         );
         let pipeline = create_pipeline!(
             device, config, bind_group_layouts,
