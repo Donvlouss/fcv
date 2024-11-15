@@ -5,6 +5,10 @@ use glam::{Vec3, Vec4};
 use super::{ColorType, IndicesType, InitType, RenderShape, RenderType, ShapeBase};
 
 impl RenderShape for ShapeBase {
+    fn shape_type(&self) -> super::ShapeType {
+        self.shape
+    }
+
     fn should_repaint(&self) -> bool {
         self.modified
     }

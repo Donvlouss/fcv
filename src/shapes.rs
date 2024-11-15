@@ -1,10 +1,21 @@
 pub mod shape_base;
 
-
 use crate::buffers::vertex_buffer::{ColorBuffer, PointBuffer};
 use glam::{Mat4, Vec3, Vec4};
 
 #[derive(Debug, Clone, Copy, Default)]
+pub enum ShapeType {
+    #[default]
+    Polygon,
+    Square,
+    Cube,
+    Circle,
+    Sphere,
+    Cone,
+    Cylinder,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum RenderType {
     #[default]
     Points,
@@ -30,6 +41,7 @@ pub enum IndicesType<'i> {
 }
 
 pub trait RenderShape {
+    fn shape_type(&self) -> ShapeType;
     // Render
     fn should_repaint(&self) -> bool;
     fn get_render_type(&self) -> RenderType;
@@ -48,6 +60,8 @@ pub trait RenderShape {
 
 #[derive(Debug, Clone, Default)]
 pub struct ShapeBase {
+    shape: ShapeType,
+
     modified: bool,
     render_type: RenderType,
 

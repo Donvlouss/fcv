@@ -6,6 +6,8 @@ pub mod lines_renders;
 pub mod faces_renders;
 
 pub mod vertex_manager;
+pub mod shape_manager;
+pub mod shape_renderer;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BufferUsageType {
