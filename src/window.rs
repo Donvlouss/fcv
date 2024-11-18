@@ -1,9 +1,8 @@
 use std::{sync::Arc, time::{Duration, Instant}};
 
-use glam::{Vec3, Vec4};
 use winit::{dpi::{PhysicalSize, Size}, event::{ElementState, MouseScrollDelta, WindowEvent}, event_loop::EventLoop, window::Window};
 
-use crate::{camera::camera_controller::{CameraController, CameraEvent}, context::FcvContext, renders::{shape_manager::ShapeManager, vertex_manager::VertexManager}, ui::EguiRenderer};
+use crate::{camera::{camera_controller::{CameraController, CameraEvent}, CameraGraphic, PerspectiveConfig}, context::FcvContext, renders::shape_manager::ShapeManager, ui::EguiRenderer};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum WindowUpdateMode {
@@ -23,6 +22,7 @@ pub struct FcvWindowConfig {
     pub inner_size: (u32, u32),
     pub camera_rotate_speed: f32,
     pub camera_zoom_speed: f32,
+    pub camera_type: CameraGraphic,
 }
 
 impl Default for FcvWindowConfig {
@@ -32,7 +32,13 @@ impl Default for FcvWindowConfig {
             mode: Default::default(),
             inner_size: (DEFAULT_WIDTH, DEFAULT_HEIGHT),
             camera_rotate_speed: 0.01,
-            camera_zoom_speed: 0.1
+            camera_zoom_speed: 0.1,
+            camera_type: CameraGraphic::Perspective(
+                PerspectiveConfig {
+                    aspect: 1.,
+                    fov_y_degree: 45.,
+                }
+            )
         }
     }
 }
@@ -44,7 +50,6 @@ pub struct FcvWindow<'window> {
     camera_controller: CameraController,
 
     egui_renderer: EguiRenderer,
-    vertex_render: VertexManager,
     shape_manager: ShapeManager,
 }
 
@@ -54,7 +59,6 @@ impl<'window> FcvWindow<'window> {
             camera_controller: CameraController::new(config.camera_rotate_speed, config.camera_zoom_speed),
             config, window: None, wgpu_context: None,
             egui_renderer: EguiRenderer::new(),
-            vertex_render: VertexManager::default(),
             shape_manager: ShapeManager::default(),
         }
     }
@@ -68,13 +72,8 @@ impl<'window> FcvWindow<'window> {
             self.camera_controller.resize(
                 (window.inner_size().width, window.inner_size().height)
             );
-            let ctx  = FcvContext::new(Arc::clone(&window));
-            // self.vertex_render.build(
-            //     ctx.device(),
-            //     ctx.queue(),
-            //     ctx.surface_config(),
-            //     &[ctx.camera_group_layout()]
-            // );
+            let ctx  = FcvContext::new(Arc::clone(&window), self.config.camera_type);
+
             self.shape_manager.build(
                 ctx.device(),
                 ctx.queue(),
@@ -95,12 +94,19 @@ impl<'window> FcvWindow<'window> {
     }
 
     #[allow(deprecated)]
-    pub fn render_loop<F: FnMut(&egui::Context, &mut VertexManager)>(
+    pub fn render_loop<F: FnMut(&egui::Context, &mut ShapeManager)>(
             &mut self, event_loop: EventLoop<()>,
             mut each_frame: F,
     ) {
         event_loop.run(|e, event_loop| {
             match e {
+                winit::event::Event::NewEvents(e) => {
+                    if let WindowUpdateMode::StaticTime(_) = self.config.mode {
+                        if let winit::event::StartCause::ResumeTimeReached {..} = e {
+                            self.window.as_ref().map(|window| window.request_redraw());
+                        }
+                    }
+                },
                 winit::event::Event::WindowEvent { window_id: _window_id, event } => {
                     if self.egui_renderer.handle_input(&event) {
                         if let Some(window) = self.window.as_ref() {
@@ -155,15 +161,8 @@ impl<'window> FcvWindow<'window> {
                                 }
                                 each_frame(
                                     self.egui_renderer.context().as_ref().unwrap(),
-                                    &mut self.vertex_render,
+                                    &mut self.shape_manager,
                                 );
-                                
-                                // ctx.render(
-                                //     &mut [
-                                //         &mut self.vertex_render,
-                                //         &mut self.egui_renderer,
-                                //     ]
-                                // );
                                 ctx.render(
                                     &mut [
                                         &mut self.shape_manager,
@@ -196,9 +195,6 @@ impl<'window> FcvWindow<'window> {
                             WindowUpdateMode::WaitEvent => winit::event_loop::ControlFlow::Wait,
                         }
                     );
-                    if let Some(window) = self.window.as_ref() {
-                        window.request_redraw();
-                    }
                 },
                 winit::event::Event::LoopExiting => {
                     self.wgpu_context = None;
@@ -206,34 +202,5 @@ impl<'window> FcvWindow<'window> {
                 _ => {}
             }
         }).unwrap();
-    }
-}
-
-// Vertex
-impl<'window> FcvWindow<'window> {
-    pub fn add_points_with_indices(
-        &mut self,
-        points: &[Vec3],
-        colors: &[Vec4],
-        indices: &[u32]
-    ) -> usize {
-        self.vertex_render.add_points_with_indices(points, colors, indices)
-    }
-    pub fn add_points(
-        &mut self,
-        points: &[Vec3],
-        colors: &[Vec4],
-    ) -> usize {
-        self.vertex_render.add_points(points, colors)
-    }
-    pub fn add_points_uniform_color(
-        &mut self,
-        points: &[Vec3],
-        color: Vec4,
-    ) -> usize {
-        self.vertex_render.add_points_uniform_color(points, color)
-    }
-    pub fn remove_points(&mut self, id: usize) {
-        self.vertex_render.remove_item(id);
     }
 }

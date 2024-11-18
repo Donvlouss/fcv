@@ -11,6 +11,7 @@ impl Default for Camera {
             z_near: 0.01,
             z_far: 100.,
             graphic: CameraGraphic::Perspective(PerspectiveConfig::default()),
+            ratio: 1.,
         }
     }
 }
@@ -40,6 +41,10 @@ impl Camera {
         self.graphic = graphic;
         self
     }
+    pub fn with_ratio(mut self, size: (f32, f32)) -> Self {
+        self.ratio = size.0 / size.1;
+        self
+    }
 }
 
 impl Camera {
@@ -51,9 +56,15 @@ impl Camera {
                     config.fov_y_degree.to_radians(),
                     config.aspect, self.z_near, self.z_far)
             },
-            CameraGraphic::Orthogonal(w, h) => {
+            CameraGraphic::Orthogonal => {
+                let d = self.eye.distance(self.target);
                 Mat4::orthographic_rh(
-                    0., w, h, 0., self.z_near, self.z_far
+                    -self.ratio,
+                    self.ratio,
+                    -d,
+                    d,
+                    self.z_near,
+                    self.z_far,
                 )
             },
         };
@@ -64,8 +75,8 @@ impl Camera {
             CameraGraphic::Perspective(perspective_config) => {
                 perspective_config.aspect = size.0 / size.1;
             },
-            CameraGraphic::Orthogonal(w, h) => {
-                (*w, *h) = size;
+            CameraGraphic::Orthogonal => {
+                self.ratio = size.0 / size.1;
             },
         }
     }

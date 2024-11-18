@@ -1,11 +1,5 @@
 use egui_wgpu::wgpu;
 
-pub mod vertex_renders;
-pub mod sparse_vertex_renders;
-pub mod lines_renders;
-pub mod faces_renders;
-
-pub mod vertex_manager;
 pub mod shape_manager;
 pub mod shape_renderer;
 
@@ -70,7 +64,7 @@ macro_rules! create_pipeline {
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: $config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),

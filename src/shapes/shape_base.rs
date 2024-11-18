@@ -13,6 +13,10 @@ impl RenderShape for ShapeBase {
         self.modified
     }
 
+    fn set_repaint(&mut self, repaint: bool) {
+        self.modified = repaint;
+    }
+
     fn get_render_type(&self) -> RenderType {
         self.render_type
     }
@@ -157,15 +161,17 @@ impl ShapeBase {
             } else {
                 vec![0, 1, 2, 2, 3, 0]
             };
-        let indices = IndicesType::Partial(
-            InitType::Move(
-                (0..6).flat_map(|f| {
+        // let indices = IndicesType::Partial(
+        //     InitType::Move(
+        //         (0..6).flat_map(|f| {
+        //             ids.iter().map(|&i| i + f * 4).collect::<Vec<_>>()
+        //         }).collect::<Vec<_>>()
+        //     )
+        // );
+        let indices = (0..6_u32).flat_map(|f| {
                     ids.iter().map(|&i| i + f * 4).collect::<Vec<_>>()
-                }).collect::<Vec<_>>()
-            )
-        );
-        let points = InitType::Move(
-            vec![
+                }).collect::<Vec<_>>();
+        let points = vec![
                 // X
                 Vec3::new(half, -half, -half),
                 Vec3::new(half, half, -half),
@@ -177,35 +183,34 @@ impl ShapeBase {
                 Vec3::new(-half, -half, half),
                 Vec3::new(-half, half, half),
                 // Y
+                Vec3::new(half, half, half),
                 Vec3::new(half, half, -half),
                 Vec3::new(-half, half, -half),
                 Vec3::new(-half, half, half),
-                Vec3::new(half, half, half),
                 // -Y
+                Vec3::new(-half, -half, half),
                 Vec3::new(-half, -half, -half),
                 Vec3::new(half, -half, -half),
                 Vec3::new(half, -half, half),
-                Vec3::new(-half, -half, half),
                 // Z
                 Vec3::new(-half, -half, half),
                 Vec3::new(half, -half, half),
                 Vec3::new(half, half, half),
                 Vec3::new(-half, half, half),
                 // -Z
-                Vec3::new(-half, -half, -half),
                 Vec3::new(half, -half, -half),
-                Vec3::new(half, half, -half),
+                Vec3::new(-half, -half, -half),
                 Vec3::new(-half, half, -half),
-            ]
-        );
-        let colors = ColorType::new_each(
-            vec![
-                face_color[0], face_color[0],
-                face_color[1], face_color[1],
-                face_color[2], face_color[2],
-            ]
-        );
-        Self::new_raw(points, colors, indices, 
+                Vec3::new(half, half, -half),
+            ];
+
+        let colors  = face_color.iter()
+            .flat_map(|c| {
+                vec![*c; 4]
+            }).collect::<Vec<Vec4>>();
+            
+        Self::new_raw(InitType::Move(points), ColorType::Each(InitType::Move(colors)),
+            IndicesType::new(indices), 
             if wire {RenderType::Line} else {RenderType::Triangle} )
             
     }
@@ -263,9 +268,10 @@ impl ShapeBase {
         points.push(Vec3::new(0., 0., r));
         for v in 1..v_sub-1 {
             let z = (v_rad * v as f32).cos();
+            let radius = r * (v_rad * v as f32).sin();
             for u in 0..u_sub {
                 let u = u_rad * u as f32;
-                points.push(Vec3::new(u.cos(), u.sin(), z));
+                points.push(Vec3::new(u.cos() * radius, u.sin() * radius, z));
             }
         }
         points.push(Vec3::new(0., 0., -r));
@@ -294,7 +300,7 @@ impl ShapeBase {
                     if v != 0 {
                         indices.push(u + p_shift);
                         if u == u_sub -1 {
-                            indices.push(u + p_shift - u_sub);
+                            indices.push(u + p_shift - u_sub + 1);
                         } else {
                             indices.push(u + p_shift + 1);
                         }
@@ -381,12 +387,11 @@ impl ShapeBase {
             .for_each(|i| {
                 let rad = u_rad * i as f32;
                 points[(i+2) as usize] = Vec3::new(rad.cos() * r, rad.sin() * r, 0.);
-                let next = if i == u_sub { 2 } else { i+1 };
+                let next = if i == u_sub-1 { 2 } else { i+3 };
                 if wire {
-                    indices.push(0);
-                    indices.push(i+2);
                     indices.push(i+2);
                     indices.push(1);
+                    indices.push(i+2);
                     indices.push(next);
                 } else {
                     indices.push(0);
@@ -427,7 +432,7 @@ impl ShapeBase {
 
             let p0 = i+2;
             let p1 = p0 + u_sub;
-            let p3 = if i==u_sub-1 { 2 } else { i+1 };
+            let p3 = if i==u_sub-1 { 2 } else { i+3 };
             let p2 = p3 + u_sub;
 
             points[(i + 2) as usize] = Vec3::new(c, s, half);
@@ -485,7 +490,7 @@ impl ShapeBase {
             } = Self::new_cylinder(arrow_radius * tail_ratio, u_sub, cylinder_height, color, wire);
             (t_points, t_indices)
         };
-        let n = indices.len() as u32;
+        let n = points.len() as u32;
         tail_indices.iter().for_each(|i| {
             indices.push(i + n);
         });
@@ -497,7 +502,7 @@ impl ShapeBase {
         for p in tail_points {
             arrow_points.push(Vec3::new(p.x, p.y, p.z + half));
         }
-        
+
         Self::new_raw(InitType::Move(arrow_points),
             ColorType::new_uniform(color), IndicesType::new(indices),
             if wire {RenderType::Line} else {RenderType::Triangle})

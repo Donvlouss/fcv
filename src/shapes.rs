@@ -44,6 +44,7 @@ pub trait RenderShape {
     fn shape_type(&self) -> ShapeType;
     // Render
     fn should_repaint(&self) -> bool;
+    fn set_repaint(&mut self, repaint: bool);
     fn get_render_type(&self) -> RenderType;
     // Buffer cache
     fn set_index(&mut self, index: usize);

@@ -63,41 +63,52 @@ impl ShapeRenderer {
         device: &wgpu::Device,
         pass: &mut wgpu::RenderPass
     ) {
-        if !self.shape.borrow().should_repaint()
-            || !self.matrix_updated {
-            return;
-        }
-        let pb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(self.shape.borrow().points()),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-        let cb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(self.shape.borrow().colors()),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-        let n_indices = self.shape.borrow().indices().len() as u32;
-        let ib = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(self.shape.borrow().indices()),
-                usage: wgpu::BufferUsages::INDEX,
-            });
-        let inb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(&self.matrix),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        if self.shape.borrow().should_repaint() || self.matrix_updated
+        {
+            let pb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(self.shape.borrow().points()),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+            let cb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(self.shape.borrow().colors()),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+            let n_indices = self.shape.borrow().indices().len() as u32;
+            let ib = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(self.shape.borrow().indices()),
+                    usage: wgpu::BufferUsages::INDEX,
+                });
+            let inb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(&self.matrix),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
 
+            pass.set_vertex_buffer(0, pb.slice(..));
+            pass.set_vertex_buffer(1, cb.slice(..));
+            pass.set_vertex_buffer(2, inb.slice(..));
+            pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint32);
+            pass.draw_indexed(0..n_indices, 0, 0..self.matrix.len() as u32);
+    
+            self.buffer_point = Some(pb);
+            self.buffer_color = Some(cb);
+            self.buffer_indices = Some(ib);
+            self.buffer_instance = Some(inb);
+        }
+        let pb = if let Some(b) = self.buffer_point.as_ref() { b } else { return; };
+        let cb = if let Some(b) = self.buffer_color.as_ref() { b } else { return; };
+        let ib = if let Some(b) = self.buffer_indices.as_ref() { b } else { return; };
+        let inb = if let Some(b) = self.buffer_instance.as_ref() { b } else { return; };
+        
         pass.set_vertex_buffer(0, pb.slice(..));
         pass.set_vertex_buffer(1, cb.slice(..));
         pass.set_vertex_buffer(2, inb.slice(..));
         pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint32);
-        pass.draw_indexed(0..n_indices, 0, 0..self.matrix.len() as u32);
+        pass.draw_indexed(0..self.shape.borrow().indices().len() as u32, 0, 0..self.matrix.len() as u32);
 
-        self.buffer_point = Some(pb);
-        self.buffer_color = Some(cb);
-        self.buffer_indices = Some(ib);
-        self.buffer_instance = Some(inb);
+        self.shape.borrow_mut().set_repaint(false);
     }
 }

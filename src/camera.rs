@@ -7,7 +7,7 @@ use glam::Vec3;
 #[derive(Debug, Clone, Copy)]
 pub enum CameraGraphic {
     Perspective(PerspectiveConfig),
-    Orthogonal(f32, f32),
+    Orthogonal,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -31,7 +31,8 @@ pub struct Camera {
     up: Vec3,
     z_near: f32,
     z_far: f32,
-    graphic: CameraGraphic
+    graphic: CameraGraphic,
+    ratio: f32,
 }
 
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]

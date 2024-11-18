@@ -3,7 +3,7 @@ use winit::{dpi::PhysicalSize, window::Window};
 
 use egui_wgpu::wgpu;
 
-use crate::{camera::{camera_buffer::CameraBuffer, camera_controller::CameraController, Camera, CameraGraphic, PerspectiveConfig}, renders::RenderManager};
+use crate::{camera::{camera_buffer::CameraBuffer, camera_controller::CameraController, Camera, CameraGraphic}, renders::RenderManager};
 
 
 #[allow(unused)]
@@ -35,11 +35,11 @@ impl<'window> FcvContext<'window> {
         self.camera.layout()
     }
 
-    pub fn new(window: Arc<Window>) -> Self {
-        pollster::block_on(Self::new_async(window))
+    pub fn new(window: Arc<Window>, camera_type: CameraGraphic) -> Self {
+        pollster::block_on(Self::new_async(window, camera_type))
     }
 
-    pub async fn new_async(window: Arc<Window>) -> Self {
+    pub async fn new_async(window: Arc<Window>, camera_type: CameraGraphic) -> Self {
         let instance = wgpu::Instance::default();
         let surface = instance.create_surface(
             window.clone()
@@ -78,13 +78,9 @@ impl<'window> FcvContext<'window> {
 
         let camera = CameraBuffer::new(
             Camera::default()
-                .with_graphic(CameraGraphic::Perspective(
-                    PerspectiveConfig {
-                        aspect: size.width as f32 / size.height as f32,
-                        ..Default::default()
-                    }
-                ))
-            , &device);
+                .with_graphic(camera_type)
+                .with_ratio((surface_config.width as f32, surface_config.height as f32))
+                , &device);
         
         Self {
             surface,

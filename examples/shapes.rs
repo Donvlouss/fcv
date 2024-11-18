@@ -17,30 +17,76 @@ fn main() {
     let mut window = FcvWindow::new(
         FcvWindowConfig {
             title: "Simple Visualization".to_owned(),
-            mode: fcv::window::WindowUpdateMode::StaticTime(1. / 144.),
+            mode: fcv::window::WindowUpdateMode::StaticTime(1. / 60.),
             ..Default::default()
         }
     );
 
     {
         let manager = window.manager();
-        // let renderer = ShapeRenderer::new(
-        //     Rc::new(RefCell::new(ShapeBase::new_cube(1., [Vec4::ONE; 6], false)))
-        // );
-        // let renderer = ShapeRenderer::new(
-        //     Rc::new(RefCell::new(ShapeBase::new_square(1., Vec4::ONE, false)))
-        // );
+        // Cube
         let renderer = ShapeRenderer::new(
-            Rc::new(RefCell::new(
-                ShapeBase::new_raw(
-                    fcv::shapes::InitType::Move(vec![Vec3::ZERO, Vec3::X]),
-                    fcv::shapes::ColorType::Uniform(Vec4::ONE),
-                    fcv::shapes::IndicesType::Sequence,
-                    fcv::shapes::RenderType::Line
-                )
-            ))
+            Rc::new(RefCell::new(ShapeBase::new_cube(1., [
+                Vec4::new(1., 0., 0., 0.5), Vec4::new(1., 0., 0., 0.5),
+                Vec4::new(0., 1., 0., 0.5), Vec4::new(0., 1., 0., 0.5),
+                Vec4::new(0., 0., 1., 0.5), Vec4::new(0., 0., 1., 0.5),
+            ], false)))
         );
+
+        // Square
+        // let renderer = ShapeRenderer::new(
+        //     Rc::new(RefCell::new(ShapeBase::new_square(1., Vec4::ONE, true)))
+        // );
+        
+        // Circle
+        // let renderer = ShapeRenderer::new(
+        //     Rc::new(RefCell::new(ShapeBase::new_circle(1., 16, Vec4::ONE, false)))
+        // );
+
+        // Sphere (cylinder ?)
+        // let renderer = ShapeRenderer::new(
+        //     Rc::new(RefCell::new(ShapeBase::new_sphere(1., 16, 16, Vec4::ONE, false)))
+        // );
+
+        // Cone
+        // let renderer = ShapeRenderer::new(
+        //     Rc::new(RefCell::new(ShapeBase::new_cone(1., 4, 1., Vec4::ONE, true)))
+        // );
+
+        // Cylinder
+        // let renderer = ShapeRenderer::new(
+        //     Rc::new(RefCell::new(ShapeBase::new_cylinder(0.5, 16, 1., Vec4::ONE, true)))
+        // );
+
+        // Arrow
+        // let renderer = ShapeRenderer::new(
+        //     Rc::new(RefCell::new(ShapeBase::new_arrow(0.2, 1., 0.5, 0.8, 16, Vec4::ONE, false)))
+        // );
+
+
         manager.add_item(renderer, None);
+
+        // Axis
+        manager.add_item(ShapeRenderer::new(Rc::new(RefCell::new(
+            ShapeBase::new_raw(
+                fcv::shapes::InitType::Move(vec![
+                        Vec3::ZERO, Vec3::X * 2.,
+                        Vec3::ZERO, Vec3::Y * 2.,
+                        Vec3::ZERO, Vec3::Z * 2.,
+                    ]
+                ),
+                fcv::shapes::ColorType::Each(fcv::shapes::InitType::Move(vec![
+                        Vec4::new(1., 0., 0., 1.), Vec4::new(1., 0., 0., 1.),
+                        Vec4::new(0., 1., 0., 1.), Vec4::new(0., 1., 0., 1.),
+                        Vec4::new(0., 0., 1., 1.), Vec4::new(0., 0., 1., 1.),
+                    ]
+                )),
+            fcv::shapes::IndicesType::Partial(
+                fcv::shapes::InitType::Move(vec![0, 1, 2, 3, 4, 5])
+            ), fcv::shapes::RenderType::Line)
+            ))),
+            None
+        );
     }
 
     window.render_loop(
