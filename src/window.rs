@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::{Duration, Instant}};
 
-use winit::{dpi::{PhysicalSize, Size}, event::{ElementState, MouseScrollDelta, WindowEvent}, event_loop::EventLoop, window::Window};
+use winit::{dpi::{PhysicalSize, Size}, event::{ElementState, MouseScrollDelta, WindowEvent}, event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows, window::Window};
 
 use crate::{camera::{camera_controller::{CameraController, CameraEvent}, CameraGraphic, PerspectiveConfig}, context::FcvContext, renders::shape_manager::ShapeManager, ui::EguiRenderer};
 
@@ -95,10 +95,11 @@ impl<'window> FcvWindow<'window> {
 
     #[allow(deprecated)]
     pub fn render_loop<F: FnMut(&egui::Context, &mut ShapeManager)>(
-            &mut self, event_loop: EventLoop<()>,
+            &mut self,
             mut each_frame: F,
     ) {
-        event_loop.run(|e, event_loop| {
+        EventLoop::builder().with_any_thread(true).build().unwrap()
+            .run(|e, event_loop| {
             match e {
                 winit::event::Event::NewEvents(e) => {
                     if let WindowUpdateMode::StaticTime(_) = self.config.mode {

@@ -21,32 +21,16 @@ impl RenderShape for ShapeBase {
         self.render_type
     }
 
-    fn set_index(&mut self, index: usize) {
-        self.id = index;
-    }
-
-    fn get_index(&self) -> usize {
-        self.id
-    }
-
-    fn points(&self) -> &[crate::buffers::vertex_buffer::PointBuffer] {
+    fn points(&self) -> &[u8] {
         bytemuck::cast_slice(&self.points)
     }
 
-    fn colors(&self) -> &[crate::buffers::vertex_buffer::ColorBuffer] {
+    fn colors(&self) -> &[u8] {
         bytemuck::cast_slice(&self.colors)
     }
 
     fn indices(&self) -> &[u32] {
         &self.indices
-    }
-
-    fn transform(&self) -> [[f32; 4]; 4] {
-        self.transform.to_cols_array_2d()
-    }
-
-    fn parent(&self) -> Option<usize> {
-        self.parent
     }
 }
 
@@ -161,13 +145,6 @@ impl ShapeBase {
             } else {
                 vec![0, 1, 2, 2, 3, 0]
             };
-        // let indices = IndicesType::Partial(
-        //     InitType::Move(
-        //         (0..6).flat_map(|f| {
-        //             ids.iter().map(|&i| i + f * 4).collect::<Vec<_>>()
-        //         }).collect::<Vec<_>>()
-        //     )
-        // );
         let indices = (0..6_u32).flat_map(|f| {
                     ids.iter().map(|&i| i + f * 4).collect::<Vec<_>>()
                 }).collect::<Vec<_>>();

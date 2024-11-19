@@ -1,9 +1,10 @@
 
-use std::{collections::HashMap, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 use egui_wgpu::wgpu::{self, include_wgsl};
+use glam::Vec4;
 
-use crate::{buffers::{transform_buffer::TransformBuffer, vertex_buffer::{ColorBuffer, PointBuffer}, BufferType}, create_pipeline, shapes::RenderType};
+use crate::{buffers::{transform_buffer::TransformBuffer, vertex_buffer::{ColorBuffer, PointBuffer}, BufferType}, create_pipeline, shapes::{RenderType, ShapeBase}};
 
 use super::{shape_renderer::ShapeRenderer, RenderManager};
 
@@ -173,5 +174,103 @@ impl RenderManager for ShapeManager {
             };
             self.render_pipeline(device, &mut pass, RenderType::TriangleStrip);
         }
+    }
+}
+
+impl ShapeManager {
+    pub fn add_square(
+        &mut self,
+        size: f32,
+        color: Vec4,
+        wire: bool,
+    ) {
+        self.add_item(ShapeRenderer::new(
+            Rc::new(RefCell::new(
+                ShapeBase::new_square(size, color, wire)
+            ))
+        ), None);
+    }
+    pub fn add_cube(
+        &mut self,
+        size: f32,
+        face_color: [Vec4; 6],
+        wire: bool,
+    ) {
+        self.add_item(ShapeRenderer::new(
+            Rc::new(RefCell::new(
+                ShapeBase::new_cube(size, face_color, wire)
+            ))
+        ), None);
+    }
+    pub fn add_circle(
+        &mut self,
+        r: f32,
+        sub: u32,
+        color: Vec4,
+        wire: bool,
+    ) {
+        self.add_item(ShapeRenderer::new(
+            Rc::new(RefCell::new(
+                ShapeBase::new_circle(r, sub, color, wire)
+            ))
+        ), None);
+    }
+    pub fn add_sphere(
+        &mut self,
+        r: f32,
+        u_sub: u32,
+        v_sub: u32,
+        color: Vec4,
+        wire: bool
+    ) {
+        self.add_item(ShapeRenderer::new(
+            Rc::new(RefCell::new(
+                ShapeBase::new_sphere(r, u_sub, v_sub, color, wire)
+            ))
+        ), None);
+    }
+    pub fn add_cone(
+        &mut self,
+        r: f32,
+        u_sub: u32,
+        height: f32,
+        color: Vec4,
+        wire: bool
+    ) {
+        self.add_item(ShapeRenderer::new(
+            Rc::new(RefCell::new(
+                ShapeBase::new_cone(r, u_sub, height, color, wire)
+            ))
+        ), None);
+    }
+    pub fn add_cylinder(
+        &mut self,
+        r: f32,
+        u_sub: u32,
+        height: f32,
+        color: Vec4,
+        wire: bool
+    ) {
+        self.add_item(ShapeRenderer::new(
+            Rc::new(RefCell::new(
+                ShapeBase::new_cylinder(r, u_sub, height, color, wire)
+            ))
+        ), None);
+    }
+    pub fn add_arrow(
+        &mut self,
+        arrow_radius: f32,
+        height: f32,
+        tail_ratio: f32,
+        tail_height_ratio: f32,
+        u_sub: u32,
+        color: Vec4,
+        wire: bool,
+    ) {
+        self.add_item(ShapeRenderer::new(
+            Rc::new(RefCell::new(
+                ShapeBase::new_arrow(arrow_radius, height, tail_ratio, tail_height_ratio, u_sub, color, wire)
+            ))
+        ), None);
     }
 }

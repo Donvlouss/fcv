@@ -1,18 +1,13 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, vec};
 
 use fcv::{renders::shape_renderer::ShapeRenderer, shapes::ShapeBase, window::{FcvWindow, FcvWindowConfig}};
 
-use glam::{Vec3, Vec4};
-use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows};
+use glam::{Mat4, Vec3, Vec4};
 
 
 
 fn main() {
     env_logger::init();
-    let event_loop = EventLoop::builder()
-        .with_any_thread(true)
-        .build()
-        .unwrap();
 
     let mut window = FcvWindow::new(
         FcvWindowConfig {
@@ -63,8 +58,17 @@ fn main() {
         //     Rc::new(RefCell::new(ShapeBase::new_arrow(0.2, 1., 0.5, 0.8, 16, Vec4::ONE, false)))
         // );
 
+        let id = manager.request_index();
+        manager.add_item(renderer, Some(id));
+        let shape = manager.entry_mut(&id).unwrap();
 
-        manager.add_item(renderer, None);
+        let m = vec![
+            Mat4::from_translation(Vec3::X) * Mat4::from_rotation_x(45f32.to_radians()),
+            Mat4::from_translation(Vec3::Y) * Mat4::from_rotation_y(45f32.to_radians()),
+            Mat4::from_translation(Vec3::Z) * Mat4::from_rotation_z(45f32.to_radians()),
+        ];
+
+        shape.set_instances(&m);
 
         // Axis
         manager.add_item(ShapeRenderer::new(Rc::new(RefCell::new(
@@ -90,7 +94,6 @@ fn main() {
     }
 
     window.render_loop(
-        event_loop,
         |ctx, _vertex_manager| {
             egui::Window::new("winit + egui + wgpu says hello!")
                 .resizable(true)

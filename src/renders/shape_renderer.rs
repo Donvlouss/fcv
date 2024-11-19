@@ -1,13 +1,14 @@
 use std::{cell::RefCell, rc::Rc};
 
 use egui_wgpu::wgpu::{self, util::DeviceExt};
+use glam::Mat4;
 
 use crate::shapes::{RenderShape, RenderType};
 
 
 pub struct ShapeRenderer {
     shape: Rc<RefCell<dyn RenderShape>>,
-    matrix: Vec<[[f32; 4]; 4]>,
+    matrix: Vec<Mat4>,
     matrix_updated: bool,
     buffer_point: Option<wgpu::Buffer>,
     buffer_color: Option<wgpu::Buffer>,
@@ -17,9 +18,8 @@ pub struct ShapeRenderer {
 
 impl ShapeRenderer {
     pub fn new(render_shape: Rc<RefCell<dyn RenderShape>>) -> Self {
-        let mat = render_shape.borrow().transform();
         Self {
-            matrix: vec![mat],
+            matrix: vec![Mat4::IDENTITY],
             shape: render_shape,
             matrix_updated: true,
             buffer_point: None,
@@ -30,7 +30,7 @@ impl ShapeRenderer {
     }
     pub fn new_instances(
         render_shape: Rc<RefCell<dyn RenderShape>>,
-        transforms: &[[[f32; 4]; 4]],
+        transforms: &[Mat4],
     ) -> Self {
         Self {
             shape: render_shape,
@@ -42,15 +42,15 @@ impl ShapeRenderer {
             buffer_instance: None,
         }
     }
-    pub fn add_matrix(&mut self, mat: [[f32; 4]; 4]) {
+    pub fn add_instance(&mut self, mat: Mat4) {
         self.matrix.push(mat);
         self.matrix_updated = true;
     }
-    pub fn remove_matrix(&mut self, id: usize) {
+    pub fn remove_instance(&mut self, id: usize) {
         self.matrix.remove(id);
         self.matrix_updated = true;
     }
-    pub fn set_matrixes(&mut self, mats: &[[[f32; 4]; 4]]) {
+    pub fn set_instances(&mut self, mats: &[Mat4]) {
         self.matrix = mats.to_vec();
         self.matrix_updated = true;
     }
@@ -67,12 +67,12 @@ impl ShapeRenderer {
         {
             let pb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None,
-                    contents: bytemuck::cast_slice(self.shape.borrow().points()),
+                    contents: self.shape.borrow().points(),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
             let cb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None,
-                    contents: bytemuck::cast_slice(self.shape.borrow().colors()),
+                    contents: self.shape.borrow().colors(),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
             let n_indices = self.shape.borrow().indices().len() as u32;
