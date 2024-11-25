@@ -2,15 +2,16 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 use egui_wgpu::wgpu::{self, include_wgsl};
-use glam::Vec4;
+use glam::{Vec3, Vec4};
 
-use crate::{buffers::{transform_buffer::TransformBuffer, vertex_buffer::{ColorBuffer, PointBuffer}, BufferType}, create_pipeline, shapes::{RenderType, ShapeBase}};
+use crate::{buffers::{transform_buffer::TransformBuffer, vertex_buffer::{ColorBuffer, PointBuffer}, BufferType}, create_pipeline, shapes::{RenderShape, RenderType, ShapeBase}};
 
 use super::{shape_renderer::ShapeRenderer, RenderManager};
 
 #[derive(Default)]
 pub struct ShapeManager {
     map: HashMap<usize, ShapeRenderer>,
+    single_map: HashMap<RenderType, Rc<RefCell<ShapeBase>>>,
     counter: usize,
 
     pl_points: Option<wgpu::RenderPipeline>,
@@ -100,6 +101,42 @@ impl ShapeManager {
             if v.get_render_type() == ty {
                 v.render(device, pass);
             }
+        }
+        if let Some(shape) = self.single_map.get(&ty) {
+            ShapeRenderer::new(Rc::clone(shape) as Rc<RefCell<dyn RenderShape>>).render(device, pass);
+        }
+    }
+    pub fn draw_point(&mut self, pt: Vec3, color: Vec4) {
+        let entry = self.single_map.entry(RenderType::Points).or_insert(Rc::new(RefCell::new(ShapeBase::default())));
+        let mut shape = entry.borrow_mut();
+        let n = shape.points.len() as u32;
+        shape.indices.push(n);
+        shape.points.push(pt);
+        shape.colors.push(color);
+    }
+    pub fn draw_line(&mut self, a: Vec3, b: Vec3, color: Vec4) {
+        let mut entry = self.single_map.entry(RenderType::Line).or_insert(
+            Rc::new(RefCell::new(ShapeBase::default().set_type(RenderType::Line)))
+            ).borrow_mut();
+        let n = entry.points.len() as u32;
+        entry.indices.push(n);
+        entry.indices.push(n+1);
+        entry.points.push(a);
+        entry.points.push(b);
+        entry.colors.push(color);
+    }
+    pub fn draw_triangle(&mut self, pts: &[Vec3], color: &[Vec4]) {
+        let mut entry = self.single_map.entry(RenderType::Triangle)
+            .or_insert(Rc::new(RefCell::new(ShapeBase::default().set_type(RenderType::Triangle)))
+            ).borrow_mut();
+        let mut n = entry.points.len() as u32;
+        for p in pts.iter() {
+            entry.points.push(*p);
+            entry.indices.push(n);
+            n+=1;
+        }
+        for c in color.iter() {
+            entry.colors.push(*c);
         }
     }
 }

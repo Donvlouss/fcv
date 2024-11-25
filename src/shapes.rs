@@ -14,7 +14,7 @@ pub enum ShapeType {
     Cylinder,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum RenderType {
     #[default]
     Points,
@@ -40,7 +40,6 @@ pub enum IndicesType<'i> {
 }
 
 pub trait RenderShape {
-    fn shape_type(&self) -> ShapeType;
     // Render
     fn should_repaint(&self) -> bool;
     fn set_repaint(&mut self, repaint: bool);
@@ -53,12 +52,10 @@ pub trait RenderShape {
 
 #[derive(Debug, Clone, Default)]
 pub struct ShapeBase {
-    shape: ShapeType,
+    pub modified: bool,
+    pub render_type: RenderType,
 
-    modified: bool,
-    render_type: RenderType,
-
-    points: Vec<Vec3>,
-    colors: Vec<Vec4>,
-    indices: Vec<u32>,
+    pub points: Vec<Vec3>,
+    pub colors: Vec<Vec4>,
+    pub indices: Vec<u32>,
 }

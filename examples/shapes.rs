@@ -70,27 +70,14 @@ fn main() {
 
         shape.set_instances(&m);
 
-        // Axis
         manager.add_item(ShapeRenderer::new(Rc::new(RefCell::new(
-            ShapeBase::new_raw(
-                fcv::shapes::InitType::Move(vec![
-                        Vec3::ZERO, Vec3::X * 2.,
-                        Vec3::ZERO, Vec3::Y * 2.,
-                        Vec3::ZERO, Vec3::Z * 2.,
-                    ]
-                ),
-                fcv::shapes::ColorType::Each(fcv::shapes::InitType::Move(vec![
-                        Vec4::new(1., 0., 0., 1.), Vec4::new(1., 0., 0., 1.),
-                        Vec4::new(0., 1., 0., 1.), Vec4::new(0., 1., 0., 1.),
-                        Vec4::new(0., 0., 1., 1.), Vec4::new(0., 0., 1., 1.),
-                    ]
-                )),
-            fcv::shapes::IndicesType::Partial(
-                fcv::shapes::InitType::Move(vec![0, 1, 2, 3, 4, 5])
-            ), fcv::shapes::RenderType::Line)
-            ))),
-            None
-        );
+            ShapeBase::new_arrow(0.3, 2., 0.2, 0.8, 16, Vec4::new(1., 0., 0., 1.), false).with_transform(Mat4::from_rotation_y(90f32.to_radians()))
+            .combination(&[
+                ShapeBase::new_arrow(0.3, 2., 0.2, 0.8, 16, Vec4::new(0., 1., 0., 1.), false).with_transform(Mat4::from_rotation_x(-90f32.to_radians())),
+                ShapeBase::new_arrow(0.3, 2., 0.2, 0.8, 16, Vec4::new(0., 0., 1., 1.), false),
+                ShapeBase::new_sphere(0.1, 16, 16, Vec4::ONE, false)
+            ])
+        ))) , None);
     }
 
     window.render_loop(

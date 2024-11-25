@@ -68,35 +68,29 @@ impl ShapeRenderer {
             let pb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None,
                     contents: self.shape.borrow().points(),
-                    usage: wgpu::BufferUsages::VERTEX,
+                    usage: wgpu::BufferUsages::VERTEX| wgpu::BufferUsages::COPY_DST,
                 });
             let cb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None,
                     contents: self.shape.borrow().colors(),
-                    usage: wgpu::BufferUsages::VERTEX,
+                    usage: wgpu::BufferUsages::VERTEX| wgpu::BufferUsages::COPY_DST,
                 });
-            let n_indices = self.shape.borrow().indices().len() as u32;
             let ib = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None,
                     contents: bytemuck::cast_slice(self.shape.borrow().indices()),
-                    usage: wgpu::BufferUsages::INDEX,
+                    usage: wgpu::BufferUsages::INDEX| wgpu::BufferUsages::COPY_DST,
                 });
             let inb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None,
                     contents: bytemuck::cast_slice(&self.matrix),
-                    usage: wgpu::BufferUsages::VERTEX,
+                    usage: wgpu::BufferUsages::VERTEX| wgpu::BufferUsages::COPY_DST,
                 });
-
-            pass.set_vertex_buffer(0, pb.slice(..));
-            pass.set_vertex_buffer(1, cb.slice(..));
-            pass.set_vertex_buffer(2, inb.slice(..));
-            pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint32);
-            pass.draw_indexed(0..n_indices, 0, 0..self.matrix.len() as u32);
     
             self.buffer_point = Some(pb);
             self.buffer_color = Some(cb);
             self.buffer_indices = Some(ib);
             self.buffer_instance = Some(inb);
+            self.matrix_updated = false;
         }
         let pb = if let Some(b) = self.buffer_point.as_ref() { b } else { return; };
         let cb = if let Some(b) = self.buffer_color.as_ref() { b } else { return; };

@@ -1,14 +1,10 @@
 use std::f32::consts::PI;
 
-use glam::{Vec3, Vec4};
+use glam::{Mat4, Vec3, Vec4};
 
 use super::{ColorType, IndicesType, InitType, RenderShape, RenderType, ShapeBase};
 
 impl RenderShape for ShapeBase {
-    fn shape_type(&self) -> super::ShapeType {
-        self.shape
-    }
-
     fn should_repaint(&self) -> bool {
         self.modified
     }
@@ -77,6 +73,38 @@ impl<'i> IndicesType<'i> {
 }
 
 impl ShapeBase {
+    pub fn set_type(self, render_type: RenderType) -> Self {
+        let mut me = self;
+        me.render_type = render_type;
+        me
+    }
+
+    pub fn apply_transform(&mut self, mat: Mat4) {
+        for p in self.points.iter_mut() {
+            *p = mat.mul_vec4(p.extend(1.)).truncate();
+        }
+    }
+    pub fn with_transform(self, mat: Mat4) -> Self {
+        let mut me = self;
+        me.apply_transform(mat);
+        me
+    }
+
+    pub fn combination(self, others: &[ShapeBase]) -> Self {
+        let mut me = self;
+        for other in others.iter() {
+            if me.render_type == other.render_type {
+                let n = me.points.len() as u32;
+                me.points.extend_from_slice(&other.points);
+                me.colors.extend_from_slice(&other.colors);
+                for &i in other.indices.iter() {
+                    me.indices.push(i + n);
+                }
+            }
+        }
+        me
+    }
+
     pub fn new_raw(
         points: InitType<Vec3>,
         colors: ColorType,
@@ -244,7 +272,7 @@ impl ShapeBase {
         let mut points = Vec::with_capacity((u_sub * (v_sub - 2) + 2) as usize);
         points.push(Vec3::new(0., 0., r));
         for v in 1..v_sub-1 {
-            let z = (v_rad * v as f32).cos();
+            let z = (v_rad * v as f32).cos()* r;
             let radius = r * (v_rad * v as f32).sin();
             for u in 0..u_sub {
                 let u = u_rad * u as f32;
