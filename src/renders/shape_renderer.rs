@@ -58,6 +58,10 @@ impl ShapeRenderer {
         self.shape.borrow().get_render_type()
     }
 
+    pub fn transparent(&self) -> bool {
+        self.shape.borrow().transparent()
+    }
+    
     pub fn render(
         &mut self,
         device: &wgpu::Device,

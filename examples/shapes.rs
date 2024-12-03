@@ -12,7 +12,6 @@ fn main() {
     let mut window = FcvWindow::new(
         FcvWindowConfig {
             title: "Simple Visualization".to_owned(),
-            mode: fcv::window::WindowUpdateMode::StaticTime(1. / 60.),
             ..Default::default()
         }
     );
@@ -40,17 +39,17 @@ fn main() {
 
         // Sphere (cylinder ?)
         // let renderer = ShapeRenderer::new(
-        //     Rc::new(RefCell::new(ShapeBase::new_sphere(1., 16, 16, Vec4::ONE, false)))
+        //     Rc::new(RefCell::new(ShapeBase::new_sphere(0.25, 16, 16, Vec4::ONE, false)))
         // );
 
         // Cone
         // let renderer = ShapeRenderer::new(
-        //     Rc::new(RefCell::new(ShapeBase::new_cone(1., 4, 1., Vec4::ONE, true)))
+        //     Rc::new(RefCell::new(ShapeBase::new_cone(1., 4, 1., Vec4::ONE, false)))
         // );
 
         // Cylinder
         // let renderer = ShapeRenderer::new(
-        //     Rc::new(RefCell::new(ShapeBase::new_cylinder(0.5, 16, 1., Vec4::ONE, true)))
+        //     Rc::new(RefCell::new(ShapeBase::new_cylinder(0.5, 16, 1., Vec4::ONE, false)))
         // );
 
         // Arrow
@@ -58,6 +57,22 @@ fn main() {
         //     Rc::new(RefCell::new(ShapeBase::new_arrow(0.2, 1., 0.5, 0.8, 16, Vec4::ONE, false)))
         // );
 
+        manager.add_item(ShapeRenderer::new(Rc::new(RefCell::new(
+            // Origin
+            ShapeBase::new_sphere(0.2 * 0.3, 16, 16, Vec4::ONE, false)
+            .combination(&[
+                // X
+                ShapeBase::new_arrow(0.3, 2., 0.2, 0.8, 16, Vec4::new(1., 0., 0., 1.), false).with_transform(Mat4::from_rotation_y(90f32.to_radians())),
+                // Y
+                ShapeBase::new_arrow(0.3, 2., 0.2, 0.8, 16, Vec4::new(0., 1., 0., 1.), false).with_transform(Mat4::from_rotation_x(-90f32.to_radians())),
+                // Z
+                ShapeBase::new_arrow(0.3, 2., 0.2, 0.8, 16, Vec4::new(0., 0., 1., 1.), false),
+                
+            ])
+        ))) , None);
+
+
+        
         let id = manager.request_index();
         manager.add_item(renderer, Some(id));
         let shape = manager.entry_mut(&id).unwrap();
@@ -69,19 +84,20 @@ fn main() {
         ];
 
         shape.set_instances(&m);
-
-        manager.add_item(ShapeRenderer::new(Rc::new(RefCell::new(
-            ShapeBase::new_arrow(0.3, 2., 0.2, 0.8, 16, Vec4::new(1., 0., 0., 1.), false).with_transform(Mat4::from_rotation_y(90f32.to_radians()))
-            .combination(&[
-                ShapeBase::new_arrow(0.3, 2., 0.2, 0.8, 16, Vec4::new(0., 1., 0., 1.), false).with_transform(Mat4::from_rotation_x(-90f32.to_radians())),
-                ShapeBase::new_arrow(0.3, 2., 0.2, 0.8, 16, Vec4::new(0., 0., 1., 1.), false),
-                ShapeBase::new_sphere(0.1, 16, 16, Vec4::ONE, false)
-            ])
-        ))) , None);
     }
 
+    let part = 400_usize;
+    let step = 1f32 / (part / 4) as f32;
+    let mut offset = 0f32;
     window.render_loop(
-        |ctx, _vertex_manager| {
+        |ctx, manager| {
+            for i in 0..part {
+                let x = i as f32 / (part / 4) as f32 - 2.;
+                let y = (x + offset).sin();
+                manager.draw_point(Vec3{x, y, z: 0.}, Vec4::ONE);
+            }
+            offset = offset + step;
+
             egui::Window::new("winit + egui + wgpu says hello!")
                 .resizable(true)
                 .vscroll(true)
@@ -98,9 +114,12 @@ fn main() {
                         ui.label(format!(
                             "Pixels per point: {}",
                             ctx.pixels_per_point()
-                        ));
-                    });
-                });
+                        )
+                    );
+                    }
+                );
+                }
+            );
         },
     );
 }

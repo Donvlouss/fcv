@@ -1,10 +1,10 @@
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
-
+use std::cell::RefMut;
 use egui_wgpu::wgpu::{self, include_wgsl};
 use glam::{Vec3, Vec4};
 
-use crate::{buffers::{transform_buffer::TransformBuffer, vertex_buffer::{ColorBuffer, PointBuffer}, BufferType}, create_pipeline, shapes::{RenderShape, RenderType, ShapeBase}};
+use crate::{buffers::{transform_buffer::TransformBuffer, vertex_buffer::{ColorBuffer, PointBuffer}, BufferType}, create_pipeline, shapes::{RenderShape, RenderType, ShapeBase}, texture::FcvTexture};
 
 use super::{shape_renderer::ShapeRenderer, RenderManager};
 
@@ -14,17 +14,29 @@ pub struct ShapeManager {
     single_map: HashMap<RenderType, Rc<RefCell<ShapeBase>>>,
     counter: usize,
 
-    pl_points: Option<wgpu::RenderPipeline>,
-    pl_line: Option<wgpu::RenderPipeline>,
-    pl_line_strip: Option<wgpu::RenderPipeline>,
-    pl_tri: Option<wgpu::RenderPipeline>,
-    pl_tri_strip: Option<wgpu::RenderPipeline>,
+    pipelines: HashMap<RenderType, wgpu::RenderPipeline>,
 
     device: Option<Arc<wgpu::Device>>,
     queue: Option<Arc<wgpu::Queue>>,
 }
 
+impl RenderType {
+    const PIPELINE_LABELS: [&'static str; 7] = [
+        "Points Pipeline",
+        "Line Pipeline",
+        "LineStrip Pipeline",
+        "Triangle Pipeline",
+        "TriangleStrip Pipeline",
+        "Transparent Triangle Pipeline",
+        "Transparent TriangleStrip Pipeline",
+    ];
+    pub fn pipeline_label(&self) -> &'static str {
+        Self::PIPELINE_LABELS[(*self as u8) as usize]
+    }
+}
+
 impl ShapeManager {
+
     pub fn build(
         &mut self,
         device: Arc<wgpu::Device>,
@@ -35,41 +47,24 @@ impl ShapeManager {
         let shaders = device.create_shader_module(include_wgsl!("../shaders/points.wgsl"));
         let layout = device.create_pipeline_layout(
             &wgpu::PipelineLayoutDescriptor {
-                label: Some("Points Layout"),
+                label: Some("Pipelines Layout"),
                 bind_group_layouts,
                 push_constant_ranges: &[],
             }
         );
-        self.pl_points = Some(create_pipeline!(
-            device, config, bind_group_layouts,
-            shaders, layout, "Points Pipeline",
-            &[PointBuffer::desc(), ColorBuffer::desc(), TransformBuffer::desc()],
-            wgpu::PrimitiveTopology::PointList
-        ));
-        self.pl_line = Some(create_pipeline!(
-            device, config, bind_group_layouts,
-            shaders, layout, "Points Pipeline",
-            &[PointBuffer::desc(), ColorBuffer::desc(), TransformBuffer::desc()],
-            wgpu::PrimitiveTopology::LineList
-        ));
-        self.pl_line_strip = Some(create_pipeline!(
-            device, config, bind_group_layouts,
-            shaders, layout, "Points Pipeline",
-            &[PointBuffer::desc(), ColorBuffer::desc(), TransformBuffer::desc()],
-            wgpu::PrimitiveTopology::LineStrip
-        ));
-        self.pl_tri = Some(create_pipeline!(
-            device, config, bind_group_layouts,
-            shaders, layout, "Points Pipeline",
-            &[PointBuffer::desc(), ColorBuffer::desc(), TransformBuffer::desc()],
-            wgpu::PrimitiveTopology::TriangleList
-        ));
-        self.pl_tri_strip = Some(create_pipeline!(
-            device, config, bind_group_layouts,
-            shaders, layout, "Points Pipeline",
-            &[PointBuffer::desc(), ColorBuffer::desc(), TransformBuffer::desc()],
-            wgpu::PrimitiveTopology::TriangleStrip
-        ));
+        let mut map = HashMap::new();
+        for t in RenderType::iter() {
+            let transparent = if *t == RenderType::TriangleTransparent || *t == RenderType::TriangleStripTransparent { true } else { false }; 
+            map.insert(*t, create_pipeline!(
+                device, config, bind_group_layouts,
+                shaders, layout, t.pipeline_label(),
+                &[PointBuffer::desc(), ColorBuffer::desc(), TransformBuffer::desc()],
+                t.wgpu_raw(),
+                transparent
+            ));
+        }
+        self.pipelines = map;
+
         self.device = Some(device);
         self.queue = Some(queue);
     }
@@ -96,28 +91,28 @@ impl ShapeManager {
         self.map.get_mut(id)
     }
 
-    fn render_pipeline(&mut self, device: &wgpu::Device, pass: &mut wgpu::RenderPass, ty: RenderType) {
-        for v in self.map.values_mut() {
-            if v.get_render_type() == ty {
-                v.render(device, pass);
-            }
+    fn render_partial(&mut self, device: &wgpu::Device, pass: &mut wgpu::RenderPass, ids: &Vec<usize>, ty: RenderType) {
+        for id in ids {
+            self.map.get_mut(id).expect("Get RenderShape from ids.")
+                .render(device, pass);
         }
         if let Some(shape) = self.single_map.get(&ty) {
             ShapeRenderer::new(Rc::clone(shape) as Rc<RefCell<dyn RenderShape>>).render(device, pass);
         }
     }
+    fn single_entry_mut(&mut self, ty: RenderType) -> RefMut<ShapeBase> {
+        self.single_map.entry(ty).or_insert(Rc::new(RefCell::new(ShapeBase::default().set_type(ty)))).borrow_mut()
+    }
+
     pub fn draw_point(&mut self, pt: Vec3, color: Vec4) {
-        let entry = self.single_map.entry(RenderType::Points).or_insert(Rc::new(RefCell::new(ShapeBase::default())));
-        let mut shape = entry.borrow_mut();
-        let n = shape.points.len() as u32;
-        shape.indices.push(n);
-        shape.points.push(pt);
-        shape.colors.push(color);
+        let mut entry = self.single_entry_mut(RenderType::Points);
+        let n = entry.points.len() as u32;
+        entry.indices.push(n);
+        entry.points.push(pt);
+        entry.colors.push(color);
     }
     pub fn draw_line(&mut self, a: Vec3, b: Vec3, color: Vec4) {
-        let mut entry = self.single_map.entry(RenderType::Line).or_insert(
-            Rc::new(RefCell::new(ShapeBase::default().set_type(RenderType::Line)))
-            ).borrow_mut();
+        let mut entry = self.single_entry_mut(RenderType::Line);
         let n = entry.points.len() as u32;
         entry.indices.push(n);
         entry.indices.push(n+1);
@@ -126,9 +121,7 @@ impl ShapeManager {
         entry.colors.push(color);
     }
     pub fn draw_triangle(&mut self, pts: &[Vec3], color: &[Vec4]) {
-        let mut entry = self.single_map.entry(RenderType::Triangle)
-            .or_insert(Rc::new(RefCell::new(ShapeBase::default().set_type(RenderType::Triangle)))
-            ).borrow_mut();
+        let mut entry = self.single_entry_mut(RenderType::Triangle);
         let mut n = entry.points.len() as u32;
         for p in pts.iter() {
             entry.points.push(*p);
@@ -139,11 +132,24 @@ impl ShapeManager {
             entry.colors.push(*c);
         }
     }
+    fn prepare(&self) -> Vec<Vec<usize>> {
+        let mut list = vec![vec![]; RenderType::len()];
+        self.map.iter()
+            .for_each(|(id, s)| {
+                let t = if s.transparent() {
+                    if s.get_render_type() == RenderType::Triangle { RenderType::TriangleTransparent } else { RenderType::TriangleStripTransparent }
+                } else { s.get_render_type() };
+                list[(t as u8) as usize].push(*id);
+            });
+        list
+    }
+    pub fn clear_single(&mut self) {
+        self.single_map.clear();
+    }
 }
 
 macro_rules! render {
-    ($op: ident, $label: expr, $view: ident, $encoder: ident, $clear: ident, $bind_group: ident) => {{
-        let pipeline = if let Some(p) = $op.as_ref() { p } else { return; };
+    ($pipeline: ident, $label: expr, $view: ident, $encoder: ident, $clear: ident, $bind_group: ident, $depth_view: ident, $transparent: ident) => {{
         let mut pass = $encoder.begin_render_pass(
             &wgpu::RenderPassDescriptor {
                 label: Some($label),
@@ -156,12 +162,21 @@ macro_rules! render {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: if $transparent { None } else { Some(
+                    wgpu::RenderPassDepthStencilAttachment {
+                        view: $depth_view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }
+                ) },
                 timestamp_writes: None,
                 occlusion_query_set: None,
             }
         );
-        pass.set_pipeline(pipeline);
+        pass.set_pipeline($pipeline);
         pass.set_bind_group(0, $bind_group, &[]);
         pass
     }};
@@ -174,42 +189,17 @@ impl RenderManager for ShapeManager {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         bind_group: &wgpu::BindGroup,
+        depth_view: &wgpu::TextureView,
         _queue: &wgpu::Queue,
     ) {
-        {
-            let mut pass = {
-                let p = self.pl_points.as_ref();
-                render!(p, "Point Pipeline", view, encoder, true, bind_group)
-            };
-            self.render_pipeline(device, &mut pass, RenderType::Points);
-        }
-        {
-            let mut pass = {
-            let p = self.pl_line.as_ref();
-            render!(p, "Line Pipeline", view, encoder, false, bind_group)
-            };
-            self.render_pipeline(device, &mut pass, RenderType::Line);
-        }
-        {
-            let mut pass = {
-            let p = self.pl_line_strip.as_ref();
-            render!(p, "LineStrip Pipeline", view, encoder, false, bind_group)
-            };
-            self.render_pipeline(device, &mut pass, RenderType::LineStrip);
-        }
-        {
-            let mut pass = {
-            let p = self.pl_tri.as_ref();
-            render!(p, "Triangle Pipeline", view, encoder, false, bind_group)
-            };
-            self.render_pipeline(device, &mut pass, RenderType::Triangle);
-        }
-        {
-            let mut pass = {
-            let p = self.pl_tri_strip.as_ref();
-            render!(p, "TriangleStrip Pipeline", view, encoder, false, bind_group)
-            };
-            self.render_pipeline(device, &mut pass, RenderType::TriangleStrip);
+        let render_list = self.prepare();
+        let mut first = true;
+        for (k, v) in RenderType::iter().zip(&render_list) {
+            let p = self.pipelines.get(k).unwrap();
+            let transparent = *k == RenderType::TriangleTransparent || *k == RenderType::TriangleStripTransparent;
+            let mut pass = render!(p, k.pipeline_label(), view, encoder, first, bind_group, depth_view, transparent);
+            first = false;
+            self.render_partial(device, &mut pass, v, *k);
         }
     }
 }

@@ -28,6 +28,13 @@ impl RenderShape for ShapeBase {
     fn indices(&self) -> &[u32] {
         &self.indices
     }
+
+    fn transparent(&self) -> bool {
+        if self.render_type == RenderType::Triangle || self.render_type == RenderType::TriangleStrip {
+            return self.colors.iter().any(|c| c.w != 1.0);
+        }
+        return false;
+    }
 }
 
 impl<'i, T> InitType<'i, T> {

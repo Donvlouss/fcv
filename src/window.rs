@@ -1,16 +1,8 @@
-use std::{sync::Arc, time::{Duration, Instant}};
+use std::{sync::Arc, time::Instant};
 
 use winit::{dpi::{PhysicalSize, Size}, event::{ElementState, MouseScrollDelta, WindowEvent}, event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows, window::Window};
 
 use crate::{camera::{camera_controller::{CameraController, CameraEvent}, CameraGraphic, PerspectiveConfig}, context::FcvContext, renders::shape_manager::ShapeManager, ui::EguiRenderer};
-
-#[derive(Debug, Default, Clone, Copy)]
-pub enum WindowUpdateMode {
-    Immediately,
-    StaticTime(f32),
-    #[default]
-    WaitEvent,
-}
 
 const DEFAULT_WIDTH: u32 = 800;
 const DEFAULT_HEIGHT: u32 = 600;
@@ -18,7 +10,7 @@ const DEFAULT_HEIGHT: u32 = 600;
 #[derive(Debug, Clone)]
 pub struct FcvWindowConfig {
     pub title: String,
-    pub mode: WindowUpdateMode,
+    pub update_time: f32,
     pub inner_size: (u32, u32),
     pub camera_rotate_speed: f32,
     pub camera_zoom_speed: f32,
@@ -29,7 +21,7 @@ impl Default for FcvWindowConfig {
     fn default() -> Self {
         Self { 
             title: "Window".to_owned(),
-            mode: Default::default(),
+            update_time: 1f32 / 60.,
             inner_size: (DEFAULT_WIDTH, DEFAULT_HEIGHT),
             camera_rotate_speed: 0.01,
             camera_zoom_speed: 0.1,
@@ -98,22 +90,18 @@ impl<'window> FcvWindow<'window> {
             &mut self,
             mut each_frame: F,
     ) {
-        EventLoop::builder().with_any_thread(true).build().unwrap()
-            .run(|e, event_loop| {
+        let mut timer = Instant::now();
+        let event_loop = EventLoop::builder().with_any_thread(true).build().unwrap();
+        event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
+        event_loop.run(|e, event_loop| {
+                if timer.elapsed().as_secs_f32() >= self.config.update_time {
+                    self.window.as_ref().map(|window| window.request_redraw());
+                    timer = Instant::now();
+                }
             match e {
-                winit::event::Event::NewEvents(e) => {
-                    if let WindowUpdateMode::StaticTime(_) = self.config.mode {
-                        if let winit::event::StartCause::ResumeTimeReached {..} = e {
-                            self.window.as_ref().map(|window| window.request_redraw());
-                        }
-                    }
-                },
                 winit::event::Event::WindowEvent { window_id: _window_id, event } => {
                     if self.egui_renderer.handle_input(&event) {
-                        if let Some(window) = self.window.as_ref() {
-                            window.request_redraw();
-                            return;
-                        }
+                        return;
                     }
                     match event {
                         WindowEvent::CloseRequested => {
@@ -160,6 +148,7 @@ impl<'window> FcvWindow<'window> {
                                 if !self.egui_renderer.begin_frame(window) {
                                     return;
                                 }
+                                self.shape_manager.clear_single();
                                 each_frame(
                                     self.egui_renderer.context().as_ref().unwrap(),
                                     &mut self.shape_manager,
@@ -174,10 +163,9 @@ impl<'window> FcvWindow<'window> {
                         }
                         _ => {}
                     }
-                    if let (Some(ctx), Some(window)) = (self.wgpu_context.as_mut(), self.window.as_ref()) {
+                    if let Some(ctx) = self.wgpu_context.as_mut() {
                         if ctx.process_camera(&mut self.camera_controller) {
                             ctx.update_camera_buffer();
-                            window.request_redraw();
                         }
                     }
                 },
@@ -185,17 +173,7 @@ impl<'window> FcvWindow<'window> {
                     self.create_window(&event_loop);
                 },
                 winit::event::Event::AboutToWait => {
-                    event_loop.set_control_flow(
-                        match self.config.mode {
-                            WindowUpdateMode::Immediately => winit::event_loop::ControlFlow::Poll,
-                            WindowUpdateMode::StaticTime(delta) => {
-                                winit::event_loop::ControlFlow::WaitUntil(
-                                    Instant::now() + Duration::from_secs_f32(delta)
-                                )
-                            },
-                            WindowUpdateMode::WaitEvent => winit::event_loop::ControlFlow::Wait,
-                        }
-                    );
+                    event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
                 },
                 winit::event::Event::LoopExiting => {
                     self.wgpu_context = None;
