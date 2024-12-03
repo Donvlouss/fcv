@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use egui_wgpu::wgpu;
+use egui_wgpu::wgpu::{self};
 
-use crate::{camera::{camera_buffer::CameraBuffer, camera_controller::CameraController, Camera, CameraGraphic, PerspectiveConfig}, renders::RenderManager};
+use crate::{camera::{camera_buffer::CameraBuffer, camera_controller::CameraController, Camera, CameraGraphic}, renders::RenderManager, texture::FcvTexture};
 
 
 #[allow(unused)]
@@ -14,6 +14,7 @@ pub struct FcvContext<'window> {
     adapter: wgpu::Adapter,
     device: Arc<wgpu::Device>,
     queue: Arc<wgpu::Queue>,
+    depth_texture: FcvTexture,
     
     camera: CameraBuffer,
 }
@@ -35,11 +36,11 @@ impl<'window> FcvContext<'window> {
         self.camera.layout()
     }
 
-    pub fn new(window: Arc<Window>) -> Self {
-        pollster::block_on(Self::new_async(window))
+    pub fn new(window: Arc<Window>, camera_type: CameraGraphic) -> Self {
+        pollster::block_on(Self::new_async(window, camera_type))
     }
 
-    pub async fn new_async(window: Arc<Window>) -> Self {
+    pub async fn new_async(window: Arc<Window>, camera_type: CameraGraphic) -> Self {
         let instance = wgpu::Instance::default();
         let surface = instance.create_surface(
             window.clone()
@@ -78,13 +79,11 @@ impl<'window> FcvContext<'window> {
 
         let camera = CameraBuffer::new(
             Camera::default()
-                .with_graphic(CameraGraphic::Perspective(
-                    PerspectiveConfig {
-                        aspect: size.width as f32 / size.height as f32,
-                        ..Default::default()
-                    }
-                ))
-            , &device);
+                .with_graphic(camera_type)
+                .with_ratio((surface_config.width as f32, surface_config.height as f32))
+                , &device);
+
+        let depth_texture = FcvTexture::create_depth_texture(&device, &surface_config);
         
         Self {
             surface,
@@ -92,6 +91,7 @@ impl<'window> FcvContext<'window> {
             adapter,
             device: Arc::new(device),
             queue: Arc::new(queue),
+            depth_texture,
             camera,
         }
     }
@@ -104,6 +104,7 @@ impl<'window> FcvContext<'window> {
         self.surface_config.width = size.width.max(1);
         self.surface_config.height = size.height.max(1);
         self.surface.configure(&self.device, &self.surface_config);
+        self.depth_texture = FcvTexture::create_depth_texture(&self.device, &self.surface_config);
         self.camera.camera.on_resize((size.width as f32, size.height as f32));
         self.update_camera_buffer();
     }
@@ -124,7 +125,7 @@ impl<'window> FcvContext<'window> {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         for r in renderer.iter_mut() {
-            r.render(&self.device, &mut encoder, &texture_view, &self.camera.bind_group(), &self.queue);
+            r.render(&self.device, &mut encoder, &texture_view, &self.camera.bind_group(), &self.depth_texture.view, &self.queue);
         }
 
         self.queue.submit(Some(encoder.finish()));

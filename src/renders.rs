@@ -1,11 +1,7 @@
 use egui_wgpu::wgpu;
 
-pub mod vertex_renders;
-pub mod sparse_vertex_renders;
-pub mod lines_renders;
-pub mod faces_renders;
-
-pub mod vertex_manager;
+pub mod shape_manager;
+pub mod shape_renderer;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BufferUsageType {
@@ -22,6 +18,7 @@ pub trait RenderManager {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         bind_group: &wgpu::BindGroup,
+        depth_view: &wgpu::TextureView,
         queue: &wgpu::Queue,
     );
 }
@@ -36,7 +33,8 @@ macro_rules! create_pipeline {
         $layout: ident,
         $pipeline_label: expr,
         $buffers: expr,
-        $topology: expr
+        $topology: expr,
+        $transparent: ident
     ) => {
         $device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some($pipeline_label),
@@ -56,7 +54,13 @@ macro_rules! create_pipeline {
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: if $transparent { None } else { Some(wgpu::DepthStencilState {
+                format: FcvTexture::FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }) },
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -68,7 +72,8 @@ macro_rules! create_pipeline {
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: $config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING), // ALPHA_BLENDING
+                    // blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING), // ALPHA_BLENDING
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),

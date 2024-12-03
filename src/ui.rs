@@ -99,6 +99,7 @@ impl RenderManager for EguiRenderer {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         _bind_group: &wgpu::BindGroup,
+        _depth_view: &wgpu::TextureView,
         queue: &wgpu::Queue,
     ) {
         if !self.frame_started {
